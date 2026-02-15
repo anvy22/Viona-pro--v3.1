@@ -68,8 +68,8 @@ export async function getWorkflowsForOrg(orgId: string) {
         select: {
             id: true,
             name: true,
-            // description: true, // UNCOMMENT AFTER RESTARTING SERVER
-            // status: true,      // UNCOMMENT AFTER RESTARTING SERVER
+            description: true, 
+            status: true,      
             created_at: true,
             updated_at: true,
         },
@@ -78,8 +78,8 @@ export async function getWorkflowsForOrg(orgId: string) {
     return workflows.map(w => ({
         id: w.id,
         name: w.name,
-        description: null, // w.description,
-        status: "draft",   // w.status || "draft",
+        description: null,
+        status: "draft",   
         createdAt: w.created_at.toISOString(),
         updatedAt: w.updated_at.toISOString(),
     }));
@@ -171,7 +171,7 @@ export async function updateWorkflowNodes(
             id: node.id,
             workflowId,
             name: (node.data?.label as string) || "Node",
-            type: "INITIAL", // TODO: Update Schema to support other types
+            type: "INITIAL",
             position: node.position as Prisma.InputJsonValue,
             data: node.data as Prisma.InputJsonValue,
         })),

@@ -23,7 +23,7 @@ import '@xyflow/react/dist/style.css';
 import { getWorkflowWithNodes } from '../../workflow-actions';
 import { nodeComponents } from '@/config/node-components';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
-
+import { AddNodeButton } from './add-node-button';
 
 export const EditorLoading = () => {
     return (
@@ -113,6 +113,9 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
                 <Background />
                 <Controls />
                 <MiniMap />
+                <Panel position="top-right" >
+                    <AddNodeButton />
+                </Panel>
             </ReactFlow>
         </div>
     );
