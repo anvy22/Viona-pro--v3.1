@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, SaveIcon } from "lucide-react";
 
 import DesktopSidebar from "@/components/DesktopSidebar";
 import { Button } from "@/components/ui/button";
@@ -11,15 +11,17 @@ import { toast } from "sonner";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 
 import { getWorkflowWithNodes, WorkflowWithNodesAndEdges } from "../workflow-actions";
-import { Editor } from "../components/editor/editor";
+import { Editor, EditorRef } from "../components/editor/editor";
 
 export default function WorkflowPage() {
     const params = useParams();
     const router = useRouter();
     const workflowId = params.workflowId as string;
+    const editorRef = useRef<EditorRef>(null);
 
     const [workflow, setWorkflow] = useState<WorkflowWithNodesAndEdges | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
 
     const fetchWorkflow = useCallback(async () => {
         setIsLoading(true);
@@ -37,25 +39,55 @@ export default function WorkflowPage() {
         fetchWorkflow();
     }, [fetchWorkflow]);
 
+    const handleSave = useCallback(async () => {
+        if (!editorRef.current) return;
+        setIsSaving(true);
+        try {
+            await editorRef.current.save();
+        } catch {
+            // Error toast is already shown in the editor's save method
+        } finally {
+            setIsSaving(false);
+        }
+    }, []);
+
     return (
         <div className="flex h-screen bg-muted/40">
             <DesktopSidebar />
 
             <div className="flex flex-col flex-1">
                 {/* Header */}
-                <div className="flex items-center gap-4 px-8 py-4 bg-background border-b">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => router.back()}
-                        className="rounded-full"
-                    >
-                        <ArrowLeft className="h-4 w-4" />
-                    </Button>
+                <div className="flex items-center justify-between px-8 py-4 bg-background border-b">
+                    <div className="flex items-center gap-4">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => router.back()}
+                            className="rounded-full"
+                        >
+                            <ArrowLeft className="h-4 w-4" />
+                        </Button>
 
-                    <h1 className="text-xl font-semibold tracking-tight">
-                        {workflow?.name || "Workflow"}
-                    </h1>
+                        <h1 className="text-xl font-semibold tracking-tight">
+                            {workflow?.name || "Workflow"}
+                        </h1>
+                    </div>
+
+                    {!isLoading && workflow && (
+                        <Button
+                            onClick={handleSave}
+                            disabled={isSaving}
+                            size="sm"
+                            className="gap-2"
+                        >
+                            {isSaving ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <SaveIcon className="h-4 w-4" />
+                            )}
+                            {isSaving ? "Saving..." : "Save"}
+                        </Button>
+                    )}
                 </div>
 
                 {/* Content */}
@@ -88,7 +120,7 @@ export default function WorkflowPage() {
                     )}
 
                     {!isLoading && workflow && (
-                        <Editor workflowId={workflowId} />
+                        <Editor ref={editorRef} workflowId={workflowId} />
                     )}
                 </div>
             </div>

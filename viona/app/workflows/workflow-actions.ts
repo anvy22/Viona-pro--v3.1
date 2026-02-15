@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { type Node, type Edge } from "@xyflow/react";
 import { auth } from "@clerk/nextjs/server";
-import { Prisma } from "@prisma/client";
+import { Prisma, NodeType } from "@prisma/client";
 
 export type WorkflowWithNodesAndEdges = {
     id: string;
@@ -68,8 +68,8 @@ export async function getWorkflowsForOrg(orgId: string) {
         select: {
             id: true,
             name: true,
-            description: true, 
-            status: true,      
+            description: true,
+            status: true,
             created_at: true,
             updated_at: true,
         },
@@ -79,7 +79,7 @@ export async function getWorkflowsForOrg(orgId: string) {
         id: w.id,
         name: w.name,
         description: null,
-        status: "draft",   
+        status: "draft",
         createdAt: w.created_at.toISOString(),
         updatedAt: w.updated_at.toISOString(),
     }));
@@ -171,7 +171,7 @@ export async function updateWorkflowNodes(
             id: node.id,
             workflowId,
             name: (node.data?.label as string) || "Node",
-            type: "INITIAL",
+            type: node.type as NodeType,
             position: node.position as Prisma.InputJsonValue,
             data: node.data as Prisma.InputJsonValue,
         })),

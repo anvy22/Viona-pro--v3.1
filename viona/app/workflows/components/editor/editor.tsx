@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
 import {
     ReactFlow,
     applyNodeChanges,
@@ -9,21 +9,20 @@ import {
     type Node,
     type Edge,
     type Connection,
-    ConnectionMode,
     Background,
     MiniMap,
     Controls,
     Panel,
-    useReactFlow,
     type NodeChange,
     type EdgeChange,
 } from "@xyflow/react";
 
 import '@xyflow/react/dist/style.css';
-import { getWorkflowWithNodes } from '../../workflow-actions';
+import { getWorkflowWithNodes, updateWorkflowNodes } from '../../workflow-actions';
 import { nodeComponents } from '@/config/node-components';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { AddNodeButton } from './add-node-button';
+import { toast } from 'sonner';
 
 export const EditorLoading = () => {
     return (
@@ -46,7 +45,11 @@ export const EditorError = () => {
     );
 };
 
-export const Editor = ({ workflowId }: { workflowId: string }) => {
+export interface EditorRef {
+    save: () => Promise<void>;
+}
+
+export const Editor = forwardRef<EditorRef, { workflowId: string }>(({ workflowId }, ref) => {
     const [nodes, setNodes] = useState<Node[]>([]);
     const [edges, setEdges] = useState<Edge[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -74,6 +77,21 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
 
         loadWorkflow();
     }, [workflowId]);
+
+    const handleSave = useCallback(async () => {
+        try {
+            await updateWorkflowNodes(workflowId, nodes, edges);
+            toast.success("Workflow saved successfully");
+        } catch (err) {
+            console.error("Failed to save workflow:", err);
+            toast.error("Failed to save workflow");
+            throw err;
+        }
+    }, [workflowId, nodes, edges]);
+
+    useImperativeHandle(ref, () => ({
+        save: handleSave,
+    }), [handleSave]);
 
     const onNodesChange = useCallback(
         (changes: NodeChange[]) => setNodes((nodesSnapshot) => applyNodeChanges(changes, nodesSnapshot)),
@@ -119,4 +137,6 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
             </ReactFlow>
         </div>
     );
-};
+});
+
+Editor.displayName = "Editor";
