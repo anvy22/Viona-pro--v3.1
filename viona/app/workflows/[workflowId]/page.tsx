@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, SaveIcon } from "lucide-react";
 
@@ -9,15 +9,17 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { useAtomValue } from "jotai";
 
-import { getWorkflowWithNodes, WorkflowWithNodesAndEdges } from "../workflow-actions";
-import { Editor, EditorRef } from "../components/editor/editor";
+import { getWorkflowWithNodes, updateWorkflowNodes, WorkflowWithNodesAndEdges } from "../workflow-actions";
+import { Editor } from "../components/editor/editor";
+import { editorAtom } from "../components/editor/store/atom";
 
 export default function WorkflowPage() {
     const params = useParams();
     const router = useRouter();
     const workflowId = params.workflowId as string;
-    const editorRef = useRef<EditorRef>(null);
+    const editor = useAtomValue(editorAtom);
 
     const [workflow, setWorkflow] = useState<WorkflowWithNodesAndEdges | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -40,16 +42,21 @@ export default function WorkflowPage() {
     }, [fetchWorkflow]);
 
     const handleSave = useCallback(async () => {
-        if (!editorRef.current) return;
+        if (!editor) return;
+
         setIsSaving(true);
         try {
-            await editorRef.current.save();
-        } catch {
-            // Error toast is already shown in the editor's save method
+            const currentNodes = editor.getNodes();
+            const currentEdges = editor.getEdges();
+            await updateWorkflowNodes(workflowId, currentNodes, currentEdges);
+            toast.success("Workflow saved successfully");
+        } catch (err) {
+            console.error("Failed to save workflow:", err);
+            toast.error("Failed to save workflow");
         } finally {
             setIsSaving(false);
         }
-    }, []);
+    }, [editor, workflowId]);
 
     return (
         <div className="flex h-screen bg-muted/40">
@@ -76,7 +83,7 @@ export default function WorkflowPage() {
                     {!isLoading && workflow && (
                         <Button
                             onClick={handleSave}
-                            disabled={isSaving}
+                            disabled={isSaving || !editor}
                             size="sm"
                             className="gap-2"
                         >
@@ -120,7 +127,7 @@ export default function WorkflowPage() {
                     )}
 
                     {!isLoading && workflow && (
-                        <Editor ref={editorRef} workflowId={workflowId} />
+                        <Editor workflowId={workflowId} />
                     )}
                 </div>
             </div>

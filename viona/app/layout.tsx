@@ -5,6 +5,7 @@ import { AppProviders } from "@/components/providers/AppProviders";
 import { ClerkProvider } from "@clerk/nextjs";
 import { AppInitializer } from "@/components/AppInitializer";
 import { Toaster } from "@/components/ui/sonner"
+import { Provider } from "jotai";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -32,7 +33,9 @@ export default function RootLayout({
         <body className={inter.className}>
           <AppProviders>
             <AppInitializer>
-              {children}
+              <Provider>
+                {children}
+              </Provider>
             </AppInitializer>
            < Toaster />
           </AppProviders>

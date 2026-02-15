@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
     ReactFlow,
     applyNodeChanges,
@@ -18,11 +18,12 @@ import {
 } from "@xyflow/react";
 
 import '@xyflow/react/dist/style.css';
-import { getWorkflowWithNodes, updateWorkflowNodes } from '../../workflow-actions';
+import { getWorkflowWithNodes } from '../../workflow-actions';
 import { nodeComponents } from '@/config/node-components';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { AddNodeButton } from './add-node-button';
-import { toast } from 'sonner';
+import { useSetAtom } from 'jotai';
+import { editorAtom } from './store/atom';
 
 export const EditorLoading = () => {
     return (
@@ -45,15 +46,20 @@ export const EditorError = () => {
     );
 };
 
-export interface EditorRef {
-    save: () => Promise<void>;
-}
-
-export const Editor = forwardRef<EditorRef, { workflowId: string }>(({ workflowId }, ref) => {
+export const Editor = ({ workflowId }: { workflowId: string }) => {
     const [nodes, setNodes] = useState<Node[]>([]);
     const [edges, setEdges] = useState<Edge[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(false);
+
+    const setEditor = useSetAtom(editorAtom);
+
+    // Clean up the atom when the editor unmounts
+    useEffect(() => {
+        return () => {
+            setEditor(null);
+        };
+    }, [setEditor]);
 
     useEffect(() => {
         async function loadWorkflow() {
@@ -77,21 +83,6 @@ export const Editor = forwardRef<EditorRef, { workflowId: string }>(({ workflowI
 
         loadWorkflow();
     }, [workflowId]);
-
-    const handleSave = useCallback(async () => {
-        try {
-            await updateWorkflowNodes(workflowId, nodes, edges);
-            toast.success("Workflow saved successfully");
-        } catch (err) {
-            console.error("Failed to save workflow:", err);
-            toast.error("Failed to save workflow");
-            throw err;
-        }
-    }, [workflowId, nodes, edges]);
-
-    useImperativeHandle(ref, () => ({
-        save: handleSave,
-    }), [handleSave]);
 
     const onNodesChange = useCallback(
         (changes: NodeChange[]) => setNodes((nodesSnapshot) => applyNodeChanges(changes, nodesSnapshot)),
@@ -127,6 +118,7 @@ export const Editor = forwardRef<EditorRef, { workflowId: string }>(({ workflowI
                     hideAttribution: true,
                 }}
                 nodeTypes={nodeComponents}
+                onInit={setEditor}
             >
                 <Background />
                 <Controls />
@@ -137,6 +129,4 @@ export const Editor = forwardRef<EditorRef, { workflowId: string }>(({ workflowI
             </ReactFlow>
         </div>
     );
-});
-
-Editor.displayName = "Editor";
+};
