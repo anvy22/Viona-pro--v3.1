@@ -4,17 +4,22 @@ import { prisma } from "@/lib/prisma";
 import { topologicalSort } from "./utils";
 import { NodeType } from "@prisma/client";
 import { getExecutor } from "@/app/workflows/components/executions/lib/executor-registry";
+import { httpRequestChannel } from "./channels/http-request";
 
 export const executeWorkflow = inngest.createFunction(
     { id: "execute-workflow" },
-    { event: "workflows/execute.workflow" },
-    async ({ event, step }) => {
-        const workflowId  = event.data.workflowId;
+    {
+        event: "workflows/execute.workflow",
+        channels: [httpRequestChannel()],
+    },
+    async ({ event, step, publish }) => {
+        const workflowId = event.data.workflowId;
 
-        if(!workflowId) {
+
+        if (!workflowId) {
             throw new NonRetriableError("Workflow ID is required");
         }
-         
+
         const sortedNodes = await step.run("prepare-workflow", async () => {
             const workflow = await prisma.workflow.findUniqueOrThrow({
                 where: { id: workflowId },
@@ -30,20 +35,21 @@ export const executeWorkflow = inngest.createFunction(
         //Initailize the context with any initail data from the trigger
         let context = event.data.initialData || {};
 
-        for ( const node of sortedNodes){
+        for (const node of sortedNodes) {
             const executor = getExecutor(node.type as NodeType);
             context = await executor({
                 data: node.data as Record<string, unknown>,
                 nodeId: node.id,
                 context,
                 step,
+                publish,
             });
         }
 
         return {
-           workflowId,
-           result:context, 
+            workflowId,
+            result: context,
         };
-        
+
     }
 );

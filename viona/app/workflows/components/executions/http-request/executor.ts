@@ -2,11 +2,12 @@ import type { NodeExecutor } from "../../executions/types";
 import { NonRetriableError } from "inngest";
 import ky, { Options } from "ky";
 import Handlebars from "handlebars";
+import { httpRequestChannel } from "@/inngest/channels/http-request";
 
 Handlebars.registerHelper("json", (context) => {
     const jsonString = JSON.stringify(context, null, 2);
     const safeString = new Handlebars.SafeString(jsonString);
-    
+
     return safeString;
 });
 
@@ -17,17 +18,42 @@ type HttpRequestData = {
     body?: Record<string, string>;
 }
 
-export const httpRequestExecutor: NodeExecutor<HttpRequestData> = async ({ data, nodeId, context, step }) => {
+export const httpRequestExecutor: NodeExecutor<HttpRequestData> = async ({ data, nodeId, context, step, publish }) => {
+
+    await publish(
+        httpRequestChannel().status({
+            nodeId,
+            status: "loading",
+        }),
+    );
 
     if (!data.endpoint) {
+        await publish(
+        httpRequestChannel().status({
+            nodeId,
+            status: "error",
+        }),
+    );
         throw new NonRetriableError("HTTP Request node: No endpoint configured");
     }
 
     if (!data.variableName) {
+        await publish(
+            httpRequestChannel().status({
+                nodeId,
+                status: "error",
+            }),
+        );
         throw new NonRetriableError("HTTP Request node: No variable name configured");
     }
 
     if (!data.method) {
+        await publish(
+            httpRequestChannel().status({
+                nodeId,
+                status: "error",
+            }),
+        );
         throw new NonRetriableError("HTTP Request node: No method configured");
     }
 
@@ -64,5 +90,13 @@ export const httpRequestExecutor: NodeExecutor<HttpRequestData> = async ({ data,
             [data.variableName]: responsePayload,
         };
     });
+
+    await publish(
+        httpRequestChannel().status({
+            nodeId,
+            status: "success",
+        }),
+    );
+    
     return result;
 };
