@@ -1,11 +1,19 @@
 import type { NodeExecutor } from "../../executions/types";
 import { NonRetriableError } from "inngest";
 import ky, { Options } from "ky";
+import Handlebars from "handlebars";
+
+Handlebars.registerHelper("json", (context) => {
+    const jsonString = JSON.stringify(context, null, 2);
+    const safeString = new Handlebars.SafeString(jsonString);
+    
+    return safeString;
+});
 
 type HttpRequestData = {
-    variableName?: string;
-    endpoint?: string;
-    method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
+    variableName: string;
+    endpoint: string;
+    method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
     body?: Record<string, string>;
 }
 
@@ -19,14 +27,19 @@ export const httpRequestExecutor: NodeExecutor<HttpRequestData> = async ({ data,
         throw new NonRetriableError("HTTP Request node: No variable name configured");
     }
 
+    if (!data.method) {
+        throw new NonRetriableError("HTTP Request node: No method configured");
+    }
+
     const result = await step.run("http-request", async () => {
-        const endpoint = data.endpoint!;
-        const method = data.method || "GET";
+        const endpoint = Handlebars.compile(data.endpoint)(context);
+        const method = data.method;
 
         const options: Options = { method };
 
         if (["POST", "PUT", "PATCH"].includes(method)) {
-            options.json = data.body;
+            const resolved = Handlebars.compile(data.body || "{}")(context);
+            options.json = JSON.parse(resolved);
             options.headers = {
                 "Content-Type": "application/json",
             };
@@ -39,24 +52,17 @@ export const httpRequestExecutor: NodeExecutor<HttpRequestData> = async ({ data,
             : await response.text();
 
         const responsePayload = {
-            httpResponce: {
+            httpResponse: {
                 status: response.status,
                 statusText: response.statusText,
                 data: responceData,
             },
         }
 
-       if (data.variableName) {
-           return {
-               ...context,
-               [data.variableName]: responsePayload,
-           }
-       }
-
-       return{
-          ...context,
-          ...responsePayload,
-       }
+        return {
+            ...context,
+            [data.variableName]: responsePayload,
+        };
     });
     return result;
 };

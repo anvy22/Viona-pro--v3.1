@@ -13,8 +13,8 @@ import { Button } from "@/components/ui/button";
 
 const formSchema = z.object({
     variableName: z.string()
-    .min(1, { message: "Variable name is required"})
-    .regex(/^[a-zA-Z_$][a-zA-Z0-9_$]*$/, { message: "Variable name must start with a letter or underscore and can only contain letters, numbers, and underscores"}),
+        .min(1, { message: "Variable name is required" })
+        .regex(/^[a-zA-Z_$][a-zA-Z0-9_$]*$/, { message: "Variable name must start with a letter or underscore and can only contain letters, numbers, and underscores" }),
     endpoint: z.url({ message: "Please enter a valid URL" }),
     method: z.enum(["GET", "POST", "PUT", "DELETE", "PATCH"]),
     body: z.string().optional(),
@@ -28,6 +28,16 @@ interface Props {
     onSubmit: (values: z.infer<typeof formSchema>) => void;
     defaultValues?: Partial<HttpRequestFormValues>;
 };
+
+const BODY_PLACEHOLDER = `{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "role": "admin",
+  "settings": {
+    "notifications": true,
+    "theme": "dark"
+  }
+}`;
 
 export const HttpRequestDialog = ({ open, onOpenChange, onSubmit, defaultValues = {} }: Props) => {
     const form = useForm<z.infer<typeof formSchema>>({
@@ -65,7 +75,14 @@ export const HttpRequestDialog = ({ open, onOpenChange, onSubmit, defaultValues 
         <Dialog open={open}
             onOpenChange={onOpenChange}
         >
-            <DialogContent>
+            <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto w-full
+                [&::-webkit-scrollbar]:w-2 
+                [&::-webkit-scrollbar-track]:bg-transparent 
+                [&::-webkit-scrollbar-thumb]:bg-gray-300 
+                [&::-webkit-scrollbar-thumb]:rounded-full 
+                hover:[&::-webkit-scrollbar-thumb]:bg-gray-400 
+                dark:[&::-webkit-scrollbar-thumb]:bg-neutral-700 
+                dark:hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600">
                 <DialogHeader>
                     <DialogTitle>HTTP Request</DialogTitle>
                     <DialogDescription>
@@ -156,13 +173,11 @@ export const HttpRequestDialog = ({ open, onOpenChange, onSubmit, defaultValues 
                                         <FormControl>
                                             <Textarea
                                                 {...field}
-                                                placeholder={`{
-                                                                    "variable": "value",
-                                                                    "json variable": {
-                                                                        "key": "value"
-                                                                    }
-                                                                }`}
+                                                rows={4}
+                                                className="min-h-[220px] font-mono text-sm"
+                                                placeholder={BODY_PLACEHOLDER}
                                             />
+
                                         </FormControl>
                                         <FormDescription>
                                             JSON with template variables. Use {"{{variable}}"} for simple values or {"{{json variable}}"} to stringify objects
