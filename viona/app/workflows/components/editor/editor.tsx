@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
     ReactFlow,
     applyNodeChanges,
@@ -24,6 +24,8 @@ import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { AddNodeButton } from './add-node-button';
 import { useSetAtom } from 'jotai';
 import { editorAtom } from './store/atom';
+import { NodeType } from '@prisma/client';
+import { ExecuteWorkflowButton } from "../execute-workflow-button";
 
 export const EditorLoading = () => {
     return (
@@ -53,6 +55,10 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
     const [error, setError] = useState(false);
 
     const setEditor = useSetAtom(editorAtom);
+
+    const hasManualTrigger = useMemo(()=>{
+        return nodes.some((node)=>node.type === NodeType.MANUAL_TRIGGER);
+    },[nodes]);
 
     // Clean up the atom when the editor unmounts
     useEffect(() => {
@@ -126,6 +132,11 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
                 <Panel position="top-right" >
                     <AddNodeButton />
                 </Panel>
+                {hasManualTrigger && (
+                    <Panel position="bottom-center">
+                        <ExecuteWorkflowButton workflowId={workflowId} />
+                    </Panel>
+                )}
             </ReactFlow>
         </div>
     );

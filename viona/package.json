@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "inngest-dev": "npx inngest-cli@latest dev"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.37.1",
@@ -49,8 +50,10 @@
     "crypto": "^1.0.1",
     "date-fns": "^4.1.0",
     "embla-carousel-react": "^8.6.0",
+    "inngest": "^3.52.0",
     "input-otp": "^1.4.2",
     "jotai": "^2.17.1",
+    "ky": "^1.14.3",
     "lucide-react": "^0.539.0",
     "next": "^15.5.11",
     "next-cloudinary": "^6.16.0",
@@ -67,6 +70,7 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",
+    "toposort": "^2.0.2",
     "vaul": "^1.1.2",
     "zod": "^4.0.17",
     "zustand": "^5.0.8"
@@ -76,6 +80,7 @@
     "@types/node": "20.19.33",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/toposort": "^2.0.7",
     "eslint": "^9.39.1",
     "eslint-config-next": "^16.0.5",
     "postcss": "^8",

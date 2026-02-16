@@ -2,9 +2,10 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 
 const isPublicRoute = createRouteMatcher([
-  '/landing',         // Landing page
-  '/sign-in(.*)',     // Matches /sign-in and /sign-in/*
-  '/sign-up(.*)',     // Matches /sign-up and /sign-up/*
+  '/landing',      
+  '/sign-in(.*)',     
+  '/sign-up(.*)',     
+  '/api/inngest',    
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

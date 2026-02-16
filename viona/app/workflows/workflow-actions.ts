@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { type Node, type Edge } from "@xyflow/react";
 import { auth } from "@clerk/nextjs/server";
 import { Prisma, NodeType } from "@prisma/client";
+import { inngest } from "@/inngest/client";
+
 
 export type WorkflowWithNodesAndEdges = {
     id: string;
@@ -192,4 +194,27 @@ export async function updateWorkflowNodes(
     }
 
     return { success: true };
+}
+
+
+export async function executeWorkflow(workflowId: string) {
+    const { userId: clerkId } = await auth();
+    if (!clerkId) throw new Error("Unauthorized");
+
+    const workflow = await prisma.workflow.findUniqueOrThrow({
+        where: { id: workflowId },
+        select: { id: true },
+    });
+
+
+
+    await inngest.send({
+        name: "workflows/execute.workflow",
+        data: {
+            workflowId,
+        },
+    });
+
+    
+    return workflow;
 }
