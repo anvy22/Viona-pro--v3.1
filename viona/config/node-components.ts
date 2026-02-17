@@ -3,12 +3,15 @@ import type { NodeTypes } from "@xyflow/react";
 import { InitialNode } from "../components/initial-node";
 import { HttpRequestNode } from "../app/workflows/components/executions/http-request/node";
 import { ManualTriggerNode } from "../app/workflows/components/triggers/manual-trigger/node";
+import { GoogleFormTrigger } from "../app/workflows/components/triggers/google-form-trigger/node";
 
 
 export const nodeComponents = {
     [NodeType.INITIAL]: InitialNode,
     [NodeType.MANUAL_TRIGGER]: ManualTriggerNode,
     [NodeType.HTTP_REQUEST]: HttpRequestNode,
+    [NodeType.GOOGLE_FORM_TRIGGER]: GoogleFormTrigger,
 } as const satisfies NodeTypes;
+
 
 export type RegisteredNodeTypes = keyof typeof nodeComponents;
