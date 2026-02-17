@@ -56,7 +56,7 @@ export const httpRequestExecutor: NodeExecutor<HttpRequestData> = async ({ data,
         );
         throw new NonRetriableError("HTTP Request node: No method configured");
     }
-
+    try{
     const result = await step.run("http-request", async () => {
         const endpoint = Handlebars.compile(data.endpoint)(context);
         const method = data.method;
@@ -70,7 +70,7 @@ export const httpRequestExecutor: NodeExecutor<HttpRequestData> = async ({ data,
                 "Content-Type": "application/json",
             };
         }
-
+      
         const response = await ky(endpoint, options);
         const contentType = response.headers.get("content-type");
         const responceData = contentType?.includes("application/json")
@@ -98,5 +98,15 @@ export const httpRequestExecutor: NodeExecutor<HttpRequestData> = async ({ data,
         }),
     );
     
+    
     return result;
+    }catch(error){
+        await publish(
+            httpRequestChannel().status({
+                nodeId,
+                status: "error",
+            }),
+        );
+        throw error;
+    }
 };
