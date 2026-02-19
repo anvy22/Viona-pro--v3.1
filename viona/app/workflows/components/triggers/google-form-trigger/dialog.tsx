@@ -20,7 +20,7 @@ export const GoogleFormTriggerDialog = ({ open, onOpenChange }: Props) => {
 
     //Contruct the webhook URL
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const webhookUrl = `${baseUrl}/api/google-form?workflowId=${workflowId}`;
+    const webhookUrl = `${baseUrl}/api/webhooks/google-form?workflowId=${workflowId}`;
 
     const copyToClipboard = () => {
         try {
@@ -65,7 +65,7 @@ export const GoogleFormTriggerDialog = ({ open, onOpenChange }: Props) => {
                         <h4  className="font-medium text-sm">Setup Instructions:</h4>
                         <ol className="text-sm text-muted-foreground space-y-1 list-decimal pl-4">
                             <li>Open your Google Form</li>
-                            <li>Click the three dots and select Script editor</li>
+                            <li>Click the three dots and select Apps Script</li>
                             <li>Copy and paste the script below</li>
                             <li>Replace the WEBHOOK_URL with the one provided above</li>
                             <li>Save and click "Triggers" and then Add Trigger</li>
