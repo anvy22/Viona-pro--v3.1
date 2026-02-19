@@ -4,6 +4,7 @@ import { InitialNode } from "../components/initial-node";
 import { HttpRequestNode } from "../app/workflows/components/executions/http-request/node";
 import { ManualTriggerNode } from "../app/workflows/components/triggers/manual-trigger/node";
 import { GoogleFormTrigger } from "../app/workflows/components/triggers/google-form-trigger/node";
+import { StripeTriggerNode } from "../app/workflows/components/triggers/stripe-trigger/node";
 
 
 export const nodeComponents = {
@@ -11,6 +12,7 @@ export const nodeComponents = {
     [NodeType.MANUAL_TRIGGER]: ManualTriggerNode,
     [NodeType.HTTP_REQUEST]: HttpRequestNode,
     [NodeType.GOOGLE_FORM_TRIGGER]: GoogleFormTrigger,
+    [NodeType.STRIPE_TRIGGER]: StripeTriggerNode,
 } as const satisfies NodeTypes;
 
 
