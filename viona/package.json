@@ -11,6 +11,9 @@
     "ngrok:dev": "dotenv -- ngrok http --url=$NGROK_URL 3000"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.45",
+    "@ai-sdk/google": "^3.0.29",
+    "@ai-sdk/openai": "^3.0.30",
     "@clerk/nextjs": "^6.37.1",
     "@hookform/resolvers": "^5.2.1",
     "@inngest/realtime": "^0.4.6",
@@ -44,6 +47,7 @@
     "@radix-ui/react-toggle-group": "^1.1.10",
     "@radix-ui/react-tooltip": "^1.2.7",
     "@xyflow/react": "^12.10.0",
+    "ai": "^6.0.91",
     "amqplib": "^0.10.9",
     "class-variance-authority": "^0.7.1",
     "cloudinary": "^2.7.0",

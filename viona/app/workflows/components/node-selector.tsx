@@ -56,6 +56,25 @@ const executionNodes: NodeTypeOption[] = [
         description: "Send an HTTP request",
         icon: GlobeIcon,
     },
+    {
+        type: NodeType.GEMINI,
+        label: "Gemini",
+        description: "Use Google Gemini to generate content",
+        icon: "/logos/gemini.svg",
+    },
+    {
+        type: NodeType.OPENAI,
+        label: "OpenAI",
+        description: "Use OpenAI to generate content",
+        icon: "/logos/openai.svg",
+    },
+    {
+        type: NodeType.ANTHROPIC,
+        label: "Anthropic",
+        description: "Use Anthropic to generate content",
+        icon: "/logos/anthropic.svg",
+    },
+
 ];
 
 interface NodeSelectorProps {
@@ -73,39 +92,40 @@ export function NodeSelector({
 
 
     const handleNodeSelect = useCallback((selection: NodeTypeOption) => {
-        if(selection.type === NodeType.MANUAL_TRIGGER){
+        if (selection.type === NodeType.MANUAL_TRIGGER) {
             const nodes = getNodes();
             const hasManualTrigger = nodes.some(node => node.type === NodeType.MANUAL_TRIGGER);
-            if(hasManualTrigger){
+            if (hasManualTrigger) {
                 toast.error("Only one manual trigger node is allowed per workflow");
                 return;
-            }}
-            setNodes((nodes) => {
-                const hasInitialTrigger = nodes.some(node => node.type === NodeType.INITIAL);
-                
-                const centerX = window.innerWidth / 2;
-                const centerY = window.innerHeight / 2
+            }
+        }
+        setNodes((nodes) => {
+            const hasInitialTrigger = nodes.some(node => node.type === NodeType.INITIAL);
 
-                const flowPosition = screenToFlowPosition({
-                    x: centerX + (Math.random() - 0.5) * 200,
-                    y: centerY + (Math.random() - 0.5) * 200,
-                });
+            const centerX = window.innerWidth / 2;
+            const centerY = window.innerHeight / 2
 
-                const newNode = {
-                    id: createId(),
-                    type: selection.type,
-                    position: flowPosition,
-                    data: {},
-                };
-
-                if(hasInitialTrigger){
-                    return [newNode];
-                }
-                
-                return [...nodes, newNode];
+            const flowPosition = screenToFlowPosition({
+                x: centerX + (Math.random() - 0.5) * 200,
+                y: centerY + (Math.random() - 0.5) * 200,
             });
-         onOpenChange(false);
-    },[setNodes, onOpenChange, getNodes, screenToFlowPosition]);
+
+            const newNode = {
+                id: createId(),
+                type: selection.type,
+                position: flowPosition,
+                data: {},
+            };
+
+            if (hasInitialTrigger) {
+                return [newNode];
+            }
+
+            return [...nodes, newNode];
+        });
+        onOpenChange(false);
+    }, [setNodes, onOpenChange, getNodes, screenToFlowPosition]);
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
