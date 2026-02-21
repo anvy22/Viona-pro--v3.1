@@ -8,6 +8,8 @@ import { StripeTriggerNode } from "../app/workflows/components/triggers/stripe-t
 import { GeminiNode } from "../app/workflows/components/executions/gemini/node";
 import { OpenAiNode } from "@/app/workflows/components/executions/openai/node";
 import { AnthropicNode } from "@/app/workflows/components/executions/anthropic/node";
+import { DiscordNode } from "@/app/workflows/components/executions/discord/node";
+import { SlackNode } from "@/app/workflows/components/executions/slack/node";
 
 
 
@@ -21,6 +23,8 @@ export const nodeComponents = {
     [NodeType.GEMINI]: GeminiNode,
     [NodeType.OPENAI]: OpenAiNode,
     [NodeType.ANTHROPIC]: AnthropicNode,
+    [NodeType.DISCORD]: DiscordNode,
+    [NodeType.SLACK]: SlackNode,
 } as const satisfies NodeTypes;
 
 

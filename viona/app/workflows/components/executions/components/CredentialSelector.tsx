@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { KeyRound, Loader2, Plus } from "lucide-react";
+import { KeyRound, Loader2, Plus, Bot, Sparkles, BrainCircuit } from "lucide-react";
 import Link from "next/link";
 
 import {
@@ -36,6 +36,24 @@ export function CredentialSelector({
     const [options, setOptions] = useState<CredentialOption[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
+    const ProviderIcon = () => {
+        switch (credentialType) {
+            case "OPENAI": return <img src="/logos/openai.svg" alt="OpenAI" className="w-4 h-4" />;
+            case "GEMINI": return <img src="/logos/gemini.svg" alt="Gemini" className="w-4 h-4" />;
+            case "ANTHROPIC": return <img src="/logos/anthropic.svg" alt="Anthropic" className="w-4 h-4" />;
+            default: return <KeyRound className="w-4 h-4" />;
+        }
+    };
+
+    const OptionIcon = () => {
+        switch (credentialType) {
+            case "OPENAI": return <img src="/logos/openai.svg" alt="OpenAI" className="w-3.5 h-3.5" />;
+            case "GEMINI": return <img src="/logos/gemini.svg" alt="Gemini" className="w-3.5 h-3.5" />;
+            case "ANTHROPIC": return <img src="/logos/anthropic.svg" alt="Anthropic" className="w-3.5 h-3.5" />;
+            default: return <KeyRound className="w-3.5 h-3.5" />;
+        }
+    };
+
     useEffect(() => {
         if (!orgId) return;
         setIsLoading(true);
@@ -48,8 +66,8 @@ export function CredentialSelector({
     return (
         <div className="space-y-2">
             <Label className="flex items-center gap-1.5">
-                <KeyRound className="w-3.5 h-3.5" />
-                API Credential
+                <ProviderIcon />
+                {credentialType.charAt(0) + credentialType.slice(1).toLowerCase()} API Credential
             </Label>
 
             {isLoading ? (
@@ -72,7 +90,10 @@ export function CredentialSelector({
                         {options.length > 0 ? (
                             options.map((c) => (
                                 <SelectItem key={c.id} value={c.id}>
-                                    {c.name}
+                                    <div className="flex items-center gap-2">
+                                        <OptionIcon />
+                                        {c.name}
+                                    </div>
                                 </SelectItem>
                             ))
                         ) : (
