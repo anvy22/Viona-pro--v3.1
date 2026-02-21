@@ -5,6 +5,10 @@ import { ChatModelDialog, type ChatModelFormValues, type ProviderKey } from "./d
 import { BaseNode, BaseNodeContent } from "@/components/react-flow/base-node";
 import { BaseHandle } from "@/components/react-flow/base-handle";
 import { WorkflowNode } from "@/components/workflow-node";
+import { type NodeStatus, NodeStatusIndicator } from "@/components/react-flow/node-status-indicator";
+import { useNodeStatus } from "@/app/workflows/components/executions/hooks/use-node-status";
+import { AI_AGENT_CHANNEL_NAME } from "@/inngest/channels/ai-agent";
+import { fetchAiAgentRealtimeToken } from "@/app/workflows/components/executions/ai-agent/actions";
 import Image from "next/image";
 import { attachCredentialToNode } from "@/app/credentials/credentials-actions";
 
@@ -19,6 +23,13 @@ type ChatModelNodeType = Node<ChatModelNodeData>;
 export const ChatModelNode = memo((props: NodeProps<ChatModelNodeType>) => {
     const [open, setOpen] = useState(false);
     const { setNodes } = useReactFlow();
+
+    const nodeStatus = useNodeStatus({
+        nodeId: props.id,
+        channel: AI_AGENT_CHANNEL_NAME,
+        topic: "status",
+        refreshToken: fetchAiAgentRealtimeToken,
+    });
 
     const handleOpenSettings = () => setOpen(true);
 
@@ -53,8 +64,14 @@ export const ChatModelNode = memo((props: NodeProps<ChatModelNodeType>) => {
             ? "/logos/anthropic.svg"
             : "/logos/gemini.svg";
 
+    const providerName = nodeData?.provider === "openai"
+        ? "OpenAI"
+        : nodeData?.provider === "anthropic"
+            ? "Anthropic"
+            : "Gemini";
+
     const description = nodeData?.model
-        ? `${nodeData.provider || "gemini"} / ${nodeData.model}`
+        ? nodeData.model
         : "Not configured";
 
     return (
@@ -67,16 +84,18 @@ export const ChatModelNode = memo((props: NodeProps<ChatModelNodeType>) => {
                 defaultCredentialId={nodeData?.credentialId ?? null}
             />
             <WorkflowNode
-                name="Chat Model"
+                name={nodeData?.provider ? providerName : "Chat Model"}
                 description={description}
                 onSettings={handleOpenSettings}
             >
-                <BaseNode onDoubleClick={handleOpenSettings}>
-                    <BaseNodeContent>
-                        <Image src={providerIcon} alt="Chat Model" width={16} height={16} />
-                        <BaseHandle position={Position.Top} type="source" id="source-1" />
-                    </BaseNodeContent>
-                </BaseNode>
+                <NodeStatusIndicator status={nodeStatus} variant="border">
+                    <BaseNode status={nodeStatus} onDoubleClick={handleOpenSettings}>
+                        <BaseNodeContent>
+                            <Image src={providerIcon} alt={providerName} width={16} height={16} />
+                            <BaseHandle position={Position.Top} type="source" id="source-1" />
+                        </BaseNodeContent>
+                    </BaseNode>
+                </NodeStatusIndicator>
             </WorkflowNode>
         </>
     );

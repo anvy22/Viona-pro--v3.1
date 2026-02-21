@@ -145,7 +145,9 @@ export const aiAgentExecutor: NodeExecutor<AiAgentData> = async ({ data, nodeId,
     });
 
     let chatModelData: ChatModelData | null = null;
+    let chatModelNodeId: string | null = null;
     let memoryData: MemoryData | null = null;
+    let memoryNodeId: string | null = null;
     const toolNodeIds: string[] = [];
 
     for (const conn of connections) {
@@ -155,6 +157,7 @@ export const aiAgentExecutor: NodeExecutor<AiAgentData> = async ({ data, nodeId,
                 include: { credential: true },
             });
             if (chatModelNode) {
+                chatModelNodeId = chatModelNode.id;
                 chatModelData = chatModelNode.data as unknown as ChatModelData;
                 // Also get credentialId from the node record
                 if (chatModelNode.credentialId) {
@@ -166,6 +169,7 @@ export const aiAgentExecutor: NodeExecutor<AiAgentData> = async ({ data, nodeId,
                 where: { id: conn.fromNodeId },
             });
             if (memoryNode) {
+                memoryNodeId = memoryNode.id;
                 memoryData = memoryNode.data as unknown as MemoryData;
             }
         } else if (conn.toInput === "tool-target") {
@@ -196,6 +200,14 @@ export const aiAgentExecutor: NodeExecutor<AiAgentData> = async ({ data, nodeId,
         chatModelData.model || "",
         apiKey,
     );
+
+    // Publish loading for sub-nodes
+    if (chatModelNodeId) {
+        await publish(aiAgentChannel().status({ nodeId: chatModelNodeId, status: "loading" }));
+    }
+    if (memoryNodeId) {
+        await publish(aiAgentChannel().status({ nodeId: memoryNodeId, status: "loading" }));
+    }
 
     // ----- 3. Resolve Memory -----
     const memoryKey = memoryData?.memoryKey || "chatHistory";
@@ -265,6 +277,14 @@ export const aiAgentExecutor: NodeExecutor<AiAgentData> = async ({ data, nodeId,
             }),
         );
 
+        // Publish success for sub-nodes
+        if (chatModelNodeId) {
+            await publish(aiAgentChannel().status({ nodeId: chatModelNodeId, status: "success" }));
+        }
+        if (memoryNodeId) {
+            await publish(aiAgentChannel().status({ nodeId: memoryNodeId, status: "success" }));
+        }
+
         return {
             ...context,
             [data.variableName]: {
@@ -282,6 +302,15 @@ export const aiAgentExecutor: NodeExecutor<AiAgentData> = async ({ data, nodeId,
                 status: "error",
             }),
         );
+
+        // Publish error for sub-nodes
+        if (chatModelNodeId) {
+            await publish(aiAgentChannel().status({ nodeId: chatModelNodeId, status: "error" }));
+        }
+        if (memoryNodeId) {
+            await publish(aiAgentChannel().status({ nodeId: memoryNodeId, status: "error" }));
+        }
+
         throw error;
     }
 };
