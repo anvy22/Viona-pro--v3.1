@@ -8,6 +8,11 @@ import {
     Bot,
     MessageSquare,
     BrainCircuit,
+    Mail,
+    Globe,
+    Calculator,
+    PackageSearch,
+    ShoppingCart,
 } from "lucide-react"
 import { useCallback } from "react";
 import { toast } from "sonner";
@@ -111,6 +116,36 @@ const subNodes: NodeTypeOption[] = [
         label: "Memory",
         description: "Window buffer memory for conversation history",
         icon: BrainCircuit,
+    },
+    {
+        type: NodeType.SEND_EMAIL,
+        label: "Send Email",
+        description: "Send emails via SMTP",
+        icon: Mail,
+    },
+    {
+        type: NodeType.WEB_SCRAPER,
+        label: "Web Scraper",
+        description: "Fetch and read content from URLs",
+        icon: Globe,
+    },
+    {
+        type: NodeType.CALCULATOR,
+        label: "Calculator",
+        description: "Evaluate math expressions",
+        icon: Calculator,
+    },
+    {
+        type: NodeType.INVENTORY_LOOKUP,
+        label: "Inventory",
+        description: "Query products, stock & warehouses",
+        icon: PackageSearch,
+    },
+    {
+        type: NodeType.ORDER_MANAGER,
+        label: "Orders",
+        description: "Search and manage orders",
+        icon: ShoppingCart,
     },
 ];
 
