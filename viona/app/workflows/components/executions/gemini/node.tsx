@@ -4,15 +4,17 @@ import { BaseExecutionNode } from "@/app/workflows/components/executions/base-ex
 import { memo, useState } from "react";
 import { GeminiDialog, type GeminiFormValues } from "./dialog";
 import { useNodeStatus } from "@/app/workflows/components/executions/hooks/use-node-status";
-import { GEMINI_CHANNEL_NAME} from "@/inngest/channels/gemini";
+import { GEMINI_CHANNEL_NAME } from "@/inngest/channels/gemini";
 import { fetchGeminiRealtimeToken } from "@/app/workflows/components/executions/gemini/actions";
 import { AVAILABLE_MODELS } from "./dialog";
+import { attachCredentialToNode } from "@/app/credentials/credentials-actions";
 
 type GeminiNodeData = {
     variableName?: string;
     model?: string;
     systemPrompt?: string;
     userPrompt?: string;
+    credentialId?: string | null;
 };
 
 type GeminiNodeType = Node<GeminiNodeData>;
@@ -23,14 +25,21 @@ export const GeminiNode = memo((props: NodeProps<GeminiNodeType>) => {
 
     const nodeStatus = useNodeStatus({
         nodeId: props.id,
-        channel: GEMINI_CHANNEL_NAME,      
+        channel: GEMINI_CHANNEL_NAME,
         topic: "status",
         refreshToken: fetchGeminiRealtimeToken,
     });
 
     const handleOpenSettings = () => setOpen(true);
 
-    const handleSubmit = (values: GeminiFormValues) => {
+    const handleSubmit = async (values: GeminiFormValues, credentialId: string | null) => {
+        // Persist credentialId to the DB so the executor can look it up
+        try {
+            await attachCredentialToNode(props.id, credentialId);
+        } catch (err) {
+            console.error("Failed to attach credential to node", err);
+        }
+
         setNodes((nodes) => {
             return nodes.map((node) => {
                 if (node.id === props.id) {
@@ -39,6 +48,7 @@ export const GeminiNode = memo((props: NodeProps<GeminiNodeType>) => {
                         data: {
                             ...node.data,
                             ...values,
+                            credentialId,
                         },
                     };
                 }
@@ -61,6 +71,7 @@ export const GeminiNode = memo((props: NodeProps<GeminiNodeType>) => {
                 onOpenChange={setOpen}
                 onSubmit={handleSubmit}
                 defaultValues={nodeData}
+                defaultCredentialId={nodeData?.credentialId ?? null}
             />
             <BaseExecutionNode
                 {...props}
@@ -71,7 +82,6 @@ export const GeminiNode = memo((props: NodeProps<GeminiNodeType>) => {
                 description={description}
                 onSettings={handleOpenSettings}
                 onDoubleClick={handleOpenSettings}
-
             />
         </>
     );

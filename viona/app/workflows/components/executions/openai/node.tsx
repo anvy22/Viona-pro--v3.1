@@ -4,15 +4,17 @@ import { BaseExecutionNode } from "@/app/workflows/components/executions/base-ex
 import { memo, useState } from "react";
 import { OpenAiDialog, type OpenAiFormValues } from "./dialog";
 import { useNodeStatus } from "@/app/workflows/components/executions/hooks/use-node-status";
-import { OPENAI_CHANNEL_NAME} from "@/inngest/channels/openai";
+import { OPENAI_CHANNEL_NAME } from "@/inngest/channels/openai";
 import { fetchOpenAIRealtimeToken } from "@/app/workflows/components/executions/openai/actions";
 import { AVAILABLE_MODELS } from "./dialog";
+import { attachCredentialToNode } from "@/app/credentials/credentials-actions";
 
 type OpenAiNodeData = {
     variableName?: string;
     model?: string;
     systemPrompt?: string;
     userPrompt?: string;
+    credentialId?: string | null;
 };
 
 type OpenAiNodeType = Node<OpenAiNodeData>;
@@ -23,14 +25,21 @@ export const OpenAiNode = memo((props: NodeProps<OpenAiNodeType>) => {
 
     const nodeStatus = useNodeStatus({
         nodeId: props.id,
-        channel: OPENAI_CHANNEL_NAME,      
+        channel: OPENAI_CHANNEL_NAME,
         topic: "status",
         refreshToken: fetchOpenAIRealtimeToken,
     });
 
     const handleOpenSettings = () => setOpen(true);
 
-    const handleSubmit = (values: OpenAiFormValues) => {
+    const handleSubmit = async (values: OpenAiFormValues, credentialId: string | null) => {
+        // Persist credentialId to the DB so the executor can look it up
+        try {
+            await attachCredentialToNode(props.id, credentialId);
+        } catch (err) {
+            console.error("Failed to attach credential to node", err);
+        }
+
         setNodes((nodes) => {
             return nodes.map((node) => {
                 if (node.id === props.id) {
@@ -39,6 +48,7 @@ export const OpenAiNode = memo((props: NodeProps<OpenAiNodeType>) => {
                         data: {
                             ...node.data,
                             ...values,
+                            credentialId,
                         },
                     };
                 }
@@ -61,6 +71,7 @@ export const OpenAiNode = memo((props: NodeProps<OpenAiNodeType>) => {
                 onOpenChange={setOpen}
                 onSubmit={handleSubmit}
                 defaultValues={nodeData}
+                defaultCredentialId={nodeData?.credentialId ?? null}
             />
             <BaseExecutionNode
                 {...props}
@@ -71,7 +82,6 @@ export const OpenAiNode = memo((props: NodeProps<OpenAiNodeType>) => {
                 description={description}
                 onSettings={handleOpenSettings}
                 onDoubleClick={handleOpenSettings}
-
             />
         </>
     );

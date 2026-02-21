@@ -4,6 +4,8 @@ import Handlebars from "handlebars";
 import { openaiChannel } from "@/inngest/channels/openai"
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateText } from "ai"
+import prisma from "@/lib/prisma";
+import { decrypt } from "@/lib/encryption";
 
 Handlebars.registerHelper("json", (context) => {
     const jsonString = JSON.stringify(context, null, 2);
@@ -28,7 +30,7 @@ export const openAiExecutor: NodeExecutor<OpenAiData> = async ({ data, nodeId, c
         }),
     );
 
-    if(!data.variableName){
+    if (!data.variableName) {
         await publish(
             openaiChannel().status({
                 nodeId,
@@ -38,7 +40,7 @@ export const openAiExecutor: NodeExecutor<OpenAiData> = async ({ data, nodeId, c
         throw new NonRetriableError("OpenAi Node:Variable name is required");
     }
 
-    if(!data.userPrompt){
+    if (!data.userPrompt) {
         await publish(
             openaiChannel().status({
                 nodeId,
@@ -49,27 +51,39 @@ export const openAiExecutor: NodeExecutor<OpenAiData> = async ({ data, nodeId, c
     }
 
     const systemPrompt = data.systemPrompt
-    ? Handlebars.compile(data.systemPrompt)(context)
-    : "You are a helpfull assistant.";
+        ? Handlebars.compile(data.systemPrompt)(context)
+        : "You are a helpfull assistant.";
 
 
     const userPrompt = Handlebars.compile(data.userPrompt)(context);
 
-    const credentials = process.env.OPENAI_API_KEY!;
+    let credentials = process.env.OPENAI_API_KEY!;
+
+    try {
+        const node = await prisma.node.findUnique({
+            where: { id: nodeId },
+            include: { credential: true }
+        });
+        if (node?.credential?.value) {
+            credentials = decrypt(node.credential.value);
+        }
+    } catch (err) {
+        console.error("Failed to load credential for node", err);
+    }
 
     const openai = createOpenAI({
         apiKey: credentials,
     })
-    
+
     try {
         const { steps } = await step.ai.wrap(
             "openai-generate-text",
-             generateText,
-             {
+            generateText,
+            {
                 model: openai(data.model || "gpt-4o"),
                 system: systemPrompt,
                 prompt: userPrompt,
-             }
+            }
         )
 
         const text = steps[0].content[0].type === "text"
@@ -100,5 +114,5 @@ export const openAiExecutor: NodeExecutor<OpenAiData> = async ({ data, nodeId, c
 
         throw error;
     }
-    
+
 };

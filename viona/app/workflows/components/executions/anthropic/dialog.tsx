@@ -8,18 +8,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { CredentialSelector } from "../components/CredentialSelector";
+import { useOrgStore } from "@/hooks/useOrgStore";
 
 export const AVAILABLE_MODELS = [
-  "claude-opus-4-6",            
-  "claude-sonnet-4-6",          
-  "claude-opus-4-5",            
-  "claude-sonnet-4-5",          
-  "claude-haiku-4-5",                                                                
-  "claude-opus-4-1",            
-  "claude-haiku-4-5-20251001",  
-  "claude-sonnet-4-5-20250929", 
+    "claude-opus-4-6",
+    "claude-sonnet-4-6",
+    "claude-opus-4-5",
+    "claude-sonnet-4-5",
+    "claude-haiku-4-5",
+    "claude-opus-4-1",
+    "claude-haiku-4-5-20251001",
+    "claude-sonnet-4-5-20250929",
 ] as const;
 
 const formSchema = z.object({
@@ -36,12 +38,16 @@ export type AnthropicFormValues = z.infer<typeof formSchema>;
 interface Props {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onSubmit: (values: AnthropicFormValues) => void;
+    onSubmit: (values: AnthropicFormValues, credentialId: string | null) => void;
     defaultValues?: Partial<AnthropicFormValues>;
+    defaultCredentialId?: string | null;
 };
 
 
-export const AnthropicDialog = ({ open, onOpenChange, onSubmit, defaultValues = {} }: Props) => {
+export const AnthropicDialog = ({ open, onOpenChange, onSubmit, defaultValues = {}, defaultCredentialId = null }: Props) => {
+    const [credentialId, setCredentialId] = useState<string | null>(defaultCredentialId);
+    const { selectedOrgId } = useOrgStore();
+
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
@@ -60,13 +66,14 @@ export const AnthropicDialog = ({ open, onOpenChange, onSubmit, defaultValues = 
                 systemPrompt: defaultValues.systemPrompt || "",
                 userPrompt: defaultValues.userPrompt || "",
             });
+            setCredentialId(defaultCredentialId ?? null);
         }
-    }, [open, defaultValues, form]);
+    }, [open, defaultValues, defaultCredentialId, form]);
 
     const watchVariableName = form.watch("variableName") || "myAnthropic";
 
     const handleSubmit = (values: z.infer<typeof formSchema>) => {
-        onSubmit(values);
+        onSubmit(values, credentialId);
         onOpenChange(false);
     };
 
@@ -90,7 +97,16 @@ export const AnthropicDialog = ({ open, onOpenChange, onSubmit, defaultValues = 
                     </DialogDescription>
                 </DialogHeader>
                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8 mt-4">
+                    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 mt-4">
+
+                        {/* Credential Selector */}
+                        <CredentialSelector
+                            orgId={selectedOrgId}
+                            credentialType="ANTHROPIC"
+                            value={credentialId}
+                            onChange={setCredentialId}
+                        />
+
                         <FormField
                             control={form.control}
                             name="variableName"
@@ -156,7 +172,6 @@ export const AnthropicDialog = ({ open, onOpenChange, onSubmit, defaultValues = 
                                             className="min-h-[80px] font-mono text-sm"
                                             placeholder="You are a helpful assistant."
                                         />
-
                                     </FormControl>
                                     <FormDescription>
                                         Sets the behavior of the assistant. Use {"{{variable}}"} for simple values or {"{{json variable}}"} to stringify objects
@@ -196,4 +211,3 @@ export const AnthropicDialog = ({ open, onOpenChange, onSubmit, defaultValues = 
         </Dialog>
     )
 }
-

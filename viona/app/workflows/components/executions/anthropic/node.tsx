@@ -4,15 +4,17 @@ import { BaseExecutionNode } from "@/app/workflows/components/executions/base-ex
 import { memo, useState } from "react";
 import { AnthropicDialog, type AnthropicFormValues } from "./dialog";
 import { useNodeStatus } from "@/app/workflows/components/executions/hooks/use-node-status";
-import { ANTHROPIC_CHANNEL_NAME} from "@/inngest/channels/anthropic";
+import { ANTHROPIC_CHANNEL_NAME } from "@/inngest/channels/anthropic";
 import { fetchAnthropicRealtimeToken } from "@/app/workflows/components/executions/anthropic/actions";
 import { AVAILABLE_MODELS } from "./dialog";
+import { attachCredentialToNode } from "@/app/credentials/credentials-actions";
 
 type AnthropicNodeData = {
     variableName?: string;
     model?: string;
     systemPrompt?: string;
     userPrompt?: string;
+    credentialId?: string | null;
 };
 
 type AnthropicNodeType = Node<AnthropicNodeData>;
@@ -23,14 +25,21 @@ export const AnthropicNode = memo((props: NodeProps<AnthropicNodeType>) => {
 
     const nodeStatus = useNodeStatus({
         nodeId: props.id,
-        channel: ANTHROPIC_CHANNEL_NAME,      
+        channel: ANTHROPIC_CHANNEL_NAME,
         topic: "status",
         refreshToken: fetchAnthropicRealtimeToken,
     });
 
     const handleOpenSettings = () => setOpen(true);
 
-    const handleSubmit = (values: AnthropicFormValues) => {
+    const handleSubmit = async (values: AnthropicFormValues, credentialId: string | null) => {
+        // Persist credentialId to the DB so the executor can look it up
+        try {
+            await attachCredentialToNode(props.id, credentialId);
+        } catch (err) {
+            console.error("Failed to attach credential to node", err);
+        }
+
         setNodes((nodes) => {
             return nodes.map((node) => {
                 if (node.id === props.id) {
@@ -39,6 +48,7 @@ export const AnthropicNode = memo((props: NodeProps<AnthropicNodeType>) => {
                         data: {
                             ...node.data,
                             ...values,
+                            credentialId,
                         },
                     };
                 }
@@ -61,6 +71,7 @@ export const AnthropicNode = memo((props: NodeProps<AnthropicNodeType>) => {
                 onOpenChange={setOpen}
                 onSubmit={handleSubmit}
                 defaultValues={nodeData}
+                defaultCredentialId={nodeData?.credentialId ?? null}
             />
             <BaseExecutionNode
                 {...props}
@@ -71,7 +82,6 @@ export const AnthropicNode = memo((props: NodeProps<AnthropicNodeType>) => {
                 description={description}
                 onSettings={handleOpenSettings}
                 onDoubleClick={handleOpenSettings}
-
             />
         </>
     );

@@ -8,15 +8,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { CredentialSelector } from "../components/CredentialSelector";
+import { useOrgStore } from "@/hooks/useOrgStore";
 
 export const AVAILABLE_MODELS = [
-  "gpt-4o",
-  "gpt-4o-mini",
-  "gpt-4.1",
-  "gpt-4.1-mini",
-  "gpt-4.1-nano",
+    "gpt-4o",
+    "gpt-4o-mini",
+    "gpt-4.1",
+    "gpt-4.1-mini",
+    "gpt-4.1-nano",
 ] as const;
 
 const formSchema = z.object({
@@ -33,12 +35,16 @@ export type OpenAiFormValues = z.infer<typeof formSchema>;
 interface Props {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onSubmit: (values: OpenAiFormValues) => void;
+    onSubmit: (values: OpenAiFormValues, credentialId: string | null) => void;
     defaultValues?: Partial<OpenAiFormValues>;
+    defaultCredentialId?: string | null;
 };
 
 
-export const OpenAiDialog = ({ open, onOpenChange, onSubmit, defaultValues = {} }: Props) => {
+export const OpenAiDialog = ({ open, onOpenChange, onSubmit, defaultValues = {}, defaultCredentialId = null }: Props) => {
+    const [credentialId, setCredentialId] = useState<string | null>(defaultCredentialId);
+    const { selectedOrgId } = useOrgStore();
+
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
@@ -57,13 +63,14 @@ export const OpenAiDialog = ({ open, onOpenChange, onSubmit, defaultValues = {} 
                 systemPrompt: defaultValues.systemPrompt || "",
                 userPrompt: defaultValues.userPrompt || "",
             });
+            setCredentialId(defaultCredentialId ?? null);
         }
-    }, [open, defaultValues, form]);
+    }, [open, defaultValues, defaultCredentialId, form]);
 
     const watchVariableName = form.watch("variableName") || "myOpenAi";
 
     const handleSubmit = (values: z.infer<typeof formSchema>) => {
-        onSubmit(values);
+        onSubmit(values, credentialId);
         onOpenChange(false);
     };
 
@@ -87,7 +94,16 @@ export const OpenAiDialog = ({ open, onOpenChange, onSubmit, defaultValues = {} 
                     </DialogDescription>
                 </DialogHeader>
                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8 mt-4">
+                    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 mt-4">
+
+                        {/* Credential Selector */}
+                        <CredentialSelector
+                            orgId={selectedOrgId}
+                            credentialType="OPENAI"
+                            value={credentialId}
+                            onChange={setCredentialId}
+                        />
+
                         <FormField
                             control={form.control}
                             name="variableName"
@@ -153,7 +169,6 @@ export const OpenAiDialog = ({ open, onOpenChange, onSubmit, defaultValues = {} 
                                             className="min-h-[80px] font-mono text-sm"
                                             placeholder="You are a helpful assistant."
                                         />
-
                                     </FormControl>
                                     <FormDescription>
                                         Sets the behavior of the assistant. Use {"{{variable}}"} for simple values or {"{{json variable}}"} to stringify objects
@@ -193,4 +208,3 @@ export const OpenAiDialog = ({ open, onOpenChange, onSubmit, defaultValues = {} 
         </Dialog>
     )
 }
-

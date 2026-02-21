@@ -21,6 +21,7 @@ model Organization {
   products      Product[]
   warehouses    Warehouse[]
   workflows     Workflow[]
+  credentials   Credential[]
 }
 
 model OrganizationInvite {
@@ -62,6 +63,7 @@ model User {
   productsCreated      Product[]            @relation("CreatedBy")
   productsModified     Product[]            @relation("ModifiedBy")
   workflows            Workflow[]
+  credentials          Credential[]
 }
 
 model Employee {
@@ -178,6 +180,31 @@ model OrganizationMember {
   @@index([user_id])
 }
 
+model Credential {
+  id         String   @id @default(uuid())
+  name       String
+  value      String
+  type       CredentialType
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  userId     BigInt
+  user       User     @relation(fields: [userId], references: [user_id], onDelete: Cascade)
+
+  org_id     BigInt
+  org        Organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade)
+
+  Node       Node[]
+
+  @@index([org_id])
+}
+
+enum CredentialType {
+  OPENAI
+  ANTHROPIC
+  GEMINI
+}
+
 /* ------------------ Workflows ------------------ */
 
 model Workflow {
@@ -221,6 +248,9 @@ model Node{
   type        NodeType
   position    Json
   data        Json @default("{}")
+
+  credentialId String?
+  credential Credential? @relation(fields: [credentialId], references: [id])
 
   outputConnections Connection[] @relation("FromNode")
   inputConnections Connection[] @relation("ToNode")
