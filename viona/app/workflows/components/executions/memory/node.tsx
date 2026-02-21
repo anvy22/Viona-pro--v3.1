@@ -20,7 +20,7 @@ type MemoryNodeType = Node<MemoryNodeData>;
 
 export const MemoryNode = memo((props: NodeProps<MemoryNodeType>) => {
     const [open, setOpen] = useState(false);
-    const { setNodes } = useReactFlow();
+    const { setNodes, setEdges } = useReactFlow();
 
     const nodeStatus = useNodeStatus({
         nodeId: props.id,
@@ -30,6 +30,11 @@ export const MemoryNode = memo((props: NodeProps<MemoryNodeType>) => {
     });
 
     const handleOpenSettings = () => setOpen(true);
+
+    const handleDelete = () => {
+        setNodes((nodes) => nodes.filter((n) => n.id !== props.id));
+        setEdges((edges) => edges.filter((e) => e.source !== props.id && e.target !== props.id));
+    };
 
     const handleSubmit = (values: MemoryFormValues) => {
         setNodes((nodes) => {
@@ -65,6 +70,7 @@ export const MemoryNode = memo((props: NodeProps<MemoryNodeType>) => {
                 name="Memory"
                 description={description}
                 onSettings={handleOpenSettings}
+                onDelete={handleDelete}
             >
                 <NodeStatusIndicator status={nodeStatus} variant="border">
                     <BaseNode status={nodeStatus} onDoubleClick={handleOpenSettings}>

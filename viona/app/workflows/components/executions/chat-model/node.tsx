@@ -22,7 +22,7 @@ type ChatModelNodeType = Node<ChatModelNodeData>;
 
 export const ChatModelNode = memo((props: NodeProps<ChatModelNodeType>) => {
     const [open, setOpen] = useState(false);
-    const { setNodes } = useReactFlow();
+    const { setNodes, setEdges } = useReactFlow();
 
     const nodeStatus = useNodeStatus({
         nodeId: props.id,
@@ -32,6 +32,11 @@ export const ChatModelNode = memo((props: NodeProps<ChatModelNodeType>) => {
     });
 
     const handleOpenSettings = () => setOpen(true);
+
+    const handleDelete = () => {
+        setNodes((nodes) => nodes.filter((n) => n.id !== props.id));
+        setEdges((edges) => edges.filter((e) => e.source !== props.id && e.target !== props.id));
+    };
 
     const handleSubmit = async (values: ChatModelFormValues, credentialId: string | null) => {
         try {
@@ -87,6 +92,7 @@ export const ChatModelNode = memo((props: NodeProps<ChatModelNodeType>) => {
                 name={nodeData?.provider ? providerName : "Chat Model"}
                 description={description}
                 onSettings={handleOpenSettings}
+                onDelete={handleDelete}
             >
                 <NodeStatusIndicator status={nodeStatus} variant="border">
                     <BaseNode status={nodeStatus} onDoubleClick={handleOpenSettings}>

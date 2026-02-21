@@ -12,6 +12,11 @@ import { slackExecutor } from "../../executions/slack/executor";
 import { aiAgentExecutor } from "../../executions/ai-agent/executor";
 import { chatModelExecutor } from "../../executions/chat-model/executor";
 import { memoryExecutor } from "../../executions/memory/executor";
+import { sendEmailExecutor } from "../../executions/send-email/executor";
+import { webScraperExecutor } from "../../executions/web-scraper/executor";
+import { calculatorExecutor } from "../../executions/calculator/executor";
+import { inventoryLookupExecutor } from "../../executions/inventory-lookup/executor";
+import { orderManagerExecutor } from "../../executions/order-manager/executor";
 
 export const executorRegistry: Record<NodeType, NodeExecutor<any>> = {
     [NodeType.MANUAL_TRIGGER]: manualTriggerExecutor,
@@ -27,6 +32,11 @@ export const executorRegistry: Record<NodeType, NodeExecutor<any>> = {
     [NodeType.AI_AGENT]: aiAgentExecutor,
     [NodeType.CHAT_MODEL]: chatModelExecutor,
     [NodeType.MEMORY]: memoryExecutor,
+    [NodeType.SEND_EMAIL]: sendEmailExecutor,
+    [NodeType.WEB_SCRAPER]: webScraperExecutor,
+    [NodeType.CALCULATOR]: calculatorExecutor,
+    [NodeType.INVENTORY_LOOKUP]: inventoryLookupExecutor,
+    [NodeType.ORDER_MANAGER]: orderManagerExecutor,
 };
 
 export const getExecutor = (type: NodeType): NodeExecutor => {
@@ -36,4 +46,3 @@ export const getExecutor = (type: NodeType): NodeExecutor => {
     }
     return executor;
 };
-

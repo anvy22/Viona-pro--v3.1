@@ -73,7 +73,7 @@ async function resolveCredential(credentialId: string | null | undefined): Promi
 /**
  * Helper: build AI SDK tools from connected tool nodes.
  */
-function buildToolsFromNodes(toolNodes: Array<{ id: string; type: string; data: any }>) {
+function buildToolsFromNodes(toolNodes: Array<{ id: string; type: string; data: any }>, orgId?: bigint) {
     const tools: Record<string, any> = {};
 
     for (const toolNode of toolNodes) {
@@ -95,14 +95,296 @@ function buildToolsFromNodes(toolNodes: Array<{ id: string; type: string; data: 
                             options.json = JSON.parse(body);
                         }
                         const response = await ky(url, { method, ...options }).text();
-                        return response.slice(0, 5000); // Limit response size
+                        return response.slice(0, 5000);
                     } catch (err: any) {
                         return `HTTP Error: ${err.message}`;
                     }
                 },
             });
+        } else if (toolNode.type === "SEND_EMAIL") {
+            const emailConfig = toolNode.data as any;
+            tools["send_email"] = tool({
+                description: "Send an email to a recipient. Use this when you need to email someone.",
+                parameters: z.object({
+                    to: z.string().describe("Recipient email address"),
+                    subject: z.string().describe("Email subject line"),
+                    body: z.string().describe("Email body (plain text)"),
+                }),
+                // @ts-expect-error — AI SDK v6 tool() typing
+                execute: async ({ to, subject, body }: { to: string; subject: string; body: string }) => {
+                    try {
+                        const nodemailer = await import("nodemailer");
+                        const transporter = nodemailer.createTransport({
+                            host: emailConfig.smtpHost,
+                            port: parseInt(emailConfig.smtpPort || "587"),
+                            secure: emailConfig.smtpPort === "465",
+                            auth: {
+                                user: emailConfig.smtpUser,
+                                pass: emailConfig.smtpPass,
+                            },
+                        });
+                        await transporter.sendMail({
+                            from: emailConfig.fromName
+                                ? `"${emailConfig.fromName}" <${emailConfig.fromAddress}>`
+                                : emailConfig.fromAddress,
+                            to,
+                            subject,
+                            text: body,
+                        });
+                        return `Email sent successfully to ${to}`;
+                    } catch (err: any) {
+                        return `Email Error: ${err.message}`;
+                    }
+                },
+            });
+        } else if (toolNode.type === "WEB_SCRAPER") {
+            const maxLength = (toolNode.data as any)?.maxLength || 5000;
+            tools["web_scraper"] = tool({
+                description: "Fetch and read web page content from a URL. Returns the text content of the page.",
+                parameters: z.object({
+                    url: z.string().describe("The URL to fetch content from"),
+                }),
+                // @ts-expect-error — AI SDK v6 tool() typing
+                execute: async ({ url }: { url: string }) => {
+                    try {
+                        const response = await ky(url).text();
+                        // Strip HTML tags for cleaner text
+                        const text = response.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+                        return text.slice(0, maxLength);
+                    } catch (err: any) {
+                        return `Scraper Error: ${err.message}`;
+                    }
+                },
+            });
+        } else if (toolNode.type === "CALCULATOR") {
+            tools["calculator"] = tool({
+                description: "Evaluate a mathematical expression. Supports +, -, *, /, %, ** (power), Math functions (sqrt, sin, cos, tan, log, abs, round, ceil, floor), and constants (PI, E).",
+                parameters: z.object({
+                    expression: z.string().describe("The math expression to evaluate, e.g. '(15 * 3) + Math.sqrt(144)'"),
+                }),
+                // @ts-expect-error — AI SDK v6 tool() typing
+                execute: async ({ expression }: { expression: string }) => {
+                    try {
+                        // Validate: only allow safe math characters and functions
+                        const safePattern = /^[0-9+\-*/%.() ,eE]+$|Math\.(sqrt|sin|cos|tan|log|abs|round|ceil|floor|pow|PI|E)/;
+                        const cleaned = expression.replace(/Math\.\w+/g, "").replace(/PI|E/g, "");
+                        if (!/^[0-9+\-*/%.() ,eE\s]*$/.test(cleaned)) {
+                            return "Error: Expression contains unsafe characters. Only numbers, operators (+,-,*,/,%,**), and Math functions are allowed.";
+                        }
+                        const safeExpr = expression
+                            .replace(/\bPI\b/g, "Math.PI")
+                            .replace(/\bE\b/g, "Math.E")
+                            .replace(/\bsqrt\b/g, "Math.sqrt")
+                            .replace(/\bsin\b/g, "Math.sin")
+                            .replace(/\bcos\b/g, "Math.cos")
+                            .replace(/\btan\b/g, "Math.tan")
+                            .replace(/\blog\b/g, "Math.log")
+                            .replace(/\babs\b/g, "Math.abs")
+                            .replace(/\bround\b/g, "Math.round")
+                            .replace(/\bceil\b/g, "Math.ceil")
+                            .replace(/\bfloor\b/g, "Math.floor");
+                        const fn = new Function(`"use strict"; return (${safeExpr})`);
+                        const result = fn();
+                        return `Result: ${result}`;
+                    } catch (err: any) {
+                        return `Calculation Error: ${err.message}`;
+                    }
+                },
+            });
+        } else if (toolNode.type === "INVENTORY_LOOKUP") {
+            // Auto-configured: queries the organization's own database
+            tools["search_products"] = tool({
+                description: "Search or list products in the inventory. If no query is provided, lists all products. Can search by name or SKU.",
+                parameters: z.object({
+                    query: z.string().optional().describe("Optional search query — product name or SKU. Leave empty to list all products."),
+                    limit: z.number().optional().describe("Max results to return (default 10)"),
+                }),
+                // @ts-expect-error — AI SDK v6 tool() typing
+                execute: async ({ query, limit }: { query?: string; limit?: number }) => {
+                    try {
+                        console.log("[Inventory Tool] orgId:", orgId?.toString(), "query:", query);
+                        const where: any = {};
+                        if (orgId) where.org_id = orgId;
+                        if (query && query.trim()) {
+                            where.OR = [
+                                { name: { contains: query, mode: "insensitive" } },
+                                { sku: { contains: query, mode: "insensitive" } },
+                            ];
+                        }
+                        const products = await prisma.product.findMany({
+                            where,
+                            include: {
+                                productStocks: { include: { warehouse: true } },
+                                productPrices: true,
+                            },
+                            take: Math.min(limit || 10, 20),
+                        });
+                        console.log("[Inventory Tool] Found", products.length, "products");
+                        if (products.length === 0) return "No products found in the inventory.";
+                        return JSON.stringify(products.map(p => ({
+                            id: p.product_id.toString(),
+                            sku: p.sku,
+                            name: p.name,
+                            description: p.description,
+                            status: p.status,
+                            stock: p.productStocks.map(s => ({
+                                warehouse: s.warehouse.name,
+                                quantity: s.quantity,
+                            })),
+                            pricing: p.productPrices.map(pr => ({
+                                actual: pr.actual_price?.toString(),
+                                retail: pr.retail_price?.toString(),
+                                market: pr.market_price?.toString(),
+                            })),
+                        })), null, 2);
+                    } catch (err: any) {
+                        console.error("[Inventory Tool] Error:", err);
+                        return `Inventory Error: ${err.message}`;
+                    }
+                },
+            });
+
+            tools["list_warehouses"] = tool({
+                description: "List all warehouses in the organization with their addresses.",
+                parameters: z.object({}),
+                // @ts-expect-error — AI SDK v6 tool() typing
+                execute: async () => {
+                    try {
+                        const warehouses = await prisma.warehouse.findMany({
+                            where: orgId ? { org_id: orgId } : {},
+                            include: { productStocks: { include: { product: true } } },
+                        });
+                        return JSON.stringify(warehouses.map(w => ({
+                            id: w.warehouse_id.toString(),
+                            name: w.name,
+                            address: w.address,
+                            productCount: w.productStocks.length,
+                            totalStock: w.productStocks.reduce((sum, s) => sum + (s.quantity || 0), 0),
+                        })), null, 2);
+                    } catch (err: any) {
+                        return `Warehouse Error: ${err.message}`;
+                    }
+                },
+            });
+        } else if (toolNode.type === "ORDER_MANAGER") {
+            tools["search_orders"] = tool({
+                description: "Search orders by customer name, email, status, or order ID. Returns order details.",
+                parameters: z.object({
+                    query: z.string().optional().describe("Search by customer name, email, or phone"),
+                    status: z.string().optional().describe("Filter by order status"),
+                    limit: z.number().optional().describe("Max results (default 10)"),
+                }),
+                // @ts-expect-error — AI SDK v6 tool() typing
+                execute: async ({ query, status, limit }: { query?: string; status?: string; limit?: number }) => {
+                    try {
+                        const where: any = {};
+                        if (orgId) where.org_id = orgId;
+                        if (status) where.status = status;
+                        if (query) {
+                            where.OR = [
+                                { customer_name: { contains: query, mode: "insensitive" } },
+                                { customer_email: { contains: query, mode: "insensitive" } },
+                                { customer_phone: { contains: query, mode: "insensitive" } },
+                            ];
+                        }
+                        const orders = await prisma.order.findMany({
+                            where,
+                            include: {
+                                orderItems: { include: { product: true } },
+                            },
+                            orderBy: { created_at: "desc" },
+                            take: Math.min(limit || 10, 20),
+                        });
+                        if (orders.length === 0) return "No orders found.";
+                        return JSON.stringify(orders.map(o => ({
+                            id: o.order_id.toString(),
+                            date: o.order_date?.toISOString(),
+                            status: o.status,
+                            total: o.total_amount?.toString(),
+                            customer: {
+                                name: o.customer_name,
+                                email: o.customer_email,
+                                phone: o.customer_phone,
+                            },
+                            shipping: {
+                                street: o.shipping_street,
+                                city: o.shipping_city,
+                                state: o.shipping_state,
+                                zip: o.shipping_zip,
+                                country: o.shipping_country,
+                                method: o.shipping_method,
+                            },
+                            items: o.orderItems.map(i => ({
+                                product: i.product.name,
+                                sku: i.product.sku,
+                                quantity: i.quantity,
+                                price: i.price_at_order?.toString(),
+                            })),
+                            notes: o.notes,
+                        })), null, 2);
+                    } catch (err: any) {
+                        return `Order Search Error: ${err.message}`;
+                    }
+                },
+            });
+
+            tools["update_order_status"] = tool({
+                description: "Update the status of an order. Can only change the status field.",
+                parameters: z.object({
+                    orderId: z.string().describe("The order ID to update"),
+                    newStatus: z.string().describe("New status (e.g. 'processing', 'shipped', 'delivered', 'cancelled')"),
+                }),
+                // @ts-expect-error — AI SDK v6 tool() typing
+                execute: async ({ orderId, newStatus }: { orderId: string; newStatus: string }) => {
+                    try {
+                        const order = await prisma.order.findFirst({
+                            where: {
+                                order_id: BigInt(orderId),
+                                ...(orgId ? { org_id: orgId } : {}),
+                            },
+                        });
+                        if (!order) return `Error: Order #${orderId} not found in your organization.`;
+
+                        await prisma.order.update({
+                            where: { order_id: BigInt(orderId) },
+                            data: { status: newStatus },
+                        });
+                        return `Order #${orderId} status updated to "${newStatus}" successfully.`;
+                    } catch (err: any) {
+                        return `Order Update Error: ${err.message}`;
+                    }
+                },
+            });
+
+            tools["get_order_stats"] = tool({
+                description: "Get summary statistics of orders — counts by status, total revenue, etc.",
+                parameters: z.object({}),
+                // @ts-expect-error — AI SDK v6 tool() typing
+                execute: async () => {
+                    try {
+                        const orders = await prisma.order.findMany({
+                            where: orgId ? { org_id: orgId } : {},
+                            select: { status: true, total_amount: true },
+                        });
+                        const statusCounts: Record<string, number> = {};
+                        let totalRevenue = 0;
+                        for (const o of orders) {
+                            const s = o.status || "unknown";
+                            statusCounts[s] = (statusCounts[s] || 0) + 1;
+                            totalRevenue += parseFloat(o.total_amount?.toString() || "0");
+                        }
+                        return JSON.stringify({
+                            totalOrders: orders.length,
+                            totalRevenue: totalRevenue.toFixed(2),
+                            byStatus: statusCounts,
+                        }, null, 2);
+                    } catch (err: any) {
+                        return `Stats Error: ${err.message}`;
+                    }
+                },
+            });
         } else {
-            // Generic tool for other node types
+            // Generic fallback for unknown tool types
             tools[toolName] = tool({
                 description: `Execute the "${toolName}" node (type: ${toolNode.type})`,
                 parameters: z.object({
@@ -118,6 +400,7 @@ function buildToolsFromNodes(toolNodes: Array<{ id: string; type: string; data: 
 
     return tools;
 }
+
 
 
 export const aiAgentExecutor: NodeExecutor<AiAgentData> = async ({ data, nodeId, context, step, publish }) => {
@@ -140,6 +423,13 @@ export const aiAgentExecutor: NodeExecutor<AiAgentData> = async ({ data, nodeId,
     }
 
     // ----- 1. Find connected sub-nodes via DB connections -----
+    // Also resolve the org_id for security scoping (inventory/order tools)
+    const agentNode = await prisma.node.findUnique({
+        where: { id: nodeId },
+        include: { workflow: { select: { org_id: true } } },
+    });
+    const orgId = agentNode?.workflow?.org_id;
+
     const connections = await prisma.connection.findMany({
         where: { toNodeId: nodeId },
     });
@@ -208,6 +498,9 @@ export const aiAgentExecutor: NodeExecutor<AiAgentData> = async ({ data, nodeId,
     if (memoryNodeId) {
         await publish(aiAgentChannel().status({ nodeId: memoryNodeId, status: "loading" }));
     }
+    for (const toolId of toolNodeIds) {
+        await publish(aiAgentChannel().status({ nodeId: toolId, status: "loading" }));
+    }
 
     // ----- 3. Resolve Memory -----
     const memoryKey = memoryData?.memoryKey || "chatHistory";
@@ -228,7 +521,7 @@ export const aiAgentExecutor: NodeExecutor<AiAgentData> = async ({ data, nodeId,
         }));
     }
 
-    const tools = buildToolsFromNodes(toolNodes);
+    const tools = buildToolsFromNodes(toolNodes, orgId);
 
     // ----- 5. Build prompts -----
     const systemPrompt = data.systemPrompt
@@ -284,6 +577,9 @@ export const aiAgentExecutor: NodeExecutor<AiAgentData> = async ({ data, nodeId,
         if (memoryNodeId) {
             await publish(aiAgentChannel().status({ nodeId: memoryNodeId, status: "success" }));
         }
+        for (const toolId of toolNodeIds) {
+            await publish(aiAgentChannel().status({ nodeId: toolId, status: "success" }));
+        }
 
         return {
             ...context,
@@ -309,6 +605,9 @@ export const aiAgentExecutor: NodeExecutor<AiAgentData> = async ({ data, nodeId,
         }
         if (memoryNodeId) {
             await publish(aiAgentChannel().status({ nodeId: memoryNodeId, status: "error" }));
+        }
+        for (const toolId of toolNodeIds) {
+            await publish(aiAgentChannel().status({ nodeId: toolId, status: "error" }));
         }
 
         throw error;
