@@ -9,10 +9,6 @@ import { CacheService } from "@/lib/cache";
 import { sendNotification } from "@/lib/rabbitmq";
 import type { Product } from "../api/inventory/products/route";
 
-// -----------------------------------------
-// 🔥 Small internal helpers (MOST IMPORTANT)
-// -----------------------------------------
-
 function toBigInt(id: string) {
   try {
     return BigInt(id);

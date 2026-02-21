@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { Trash2, Key, ShieldCheck, MoreVertical } from "lucide-react";
+import { Trash2, Key, ShieldCheck, MoreVertical, Edit } from "lucide-react";
 
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,10 +17,11 @@ import { CredentialListItem } from "../types";
 interface CredentialCardProps {
     credential: CredentialListItem;
     onDelete: () => Promise<void>;
+    onEdit?: () => void;
     canManage: boolean;
 }
 
-export function CredentialCard({ credential, onDelete, canManage }: CredentialCardProps) {
+export function CredentialCard({ credential, onDelete, onEdit, canManage }: CredentialCardProps) {
     const [isDeleting, setIsDeleting] = useState(false);
 
     const handleDelete = async () => {
@@ -61,6 +62,12 @@ export function CredentialCard({ credential, onDelete, canManage }: CredentialCa
                         <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuSeparator />
+                            {onEdit && (
+                                <DropdownMenuItem onClick={onEdit} className="cursor-pointer">
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Edit credential
+                                </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem
                                 onClick={handleDelete}
                                 disabled={isDeleting}

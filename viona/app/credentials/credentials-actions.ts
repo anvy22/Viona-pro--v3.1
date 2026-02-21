@@ -110,10 +110,55 @@ export async function attachCredentialToNode(nodeId: string, credentialId: strin
     const { userId: clerkId } = await auth();
     if (!clerkId) throw new Error("Unauthorized");
 
-    await prisma.node.update({
+    // Update the node's credentialId. Use updateMany to avoid throwing if the node does not exist yet.
+    const updateResult = await prisma.node.updateMany({
         where: { id: nodeId },
         data: { credentialId },
+    });
+    if (updateResult.count === 0) {
+        console.warn(`attachCredentialToNode: No node found with id ${nodeId}. This may occur if the node has not been persisted yet.`);
+    }
+
+    return { success: true };
+}
+
+export async function updateCredential({
+    id,
+    name,
+    value,
+    orgId,
+}: {
+    id: string;
+    name: string;
+    value?: string;
+    orgId: string;
+}) {
+    const { userId: clerkId } = await auth();
+    if (!clerkId) throw new Error("Unauthorized");
+
+    const user = await prisma.user.findUnique({ where: { clerk_id: clerkId } });
+    if (!user) throw new Error("User not found");
+
+    const existing = await prisma.credential.findFirst({
+        where: { id, org_id: BigInt(orgId) },
+    });
+
+    if (!existing) {
+        throw new Error("Credential not found or unauthorized");
+    }
+
+    const dataToUpdate: any = { name };
+
+    // Only update the value if it's provided and not the masked dummy value
+    if (value && value.trim() !== "" && value !== "••••••••") {
+        dataToUpdate.value = encrypt(value);
+    }
+
+    await prisma.credential.update({
+        where: { id },
+        data: dataToUpdate,
     });
 
     return { success: true };
 }
+

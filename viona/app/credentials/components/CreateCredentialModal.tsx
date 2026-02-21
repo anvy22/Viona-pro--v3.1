@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -21,7 +21,8 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { CredentialType } from "@prisma/client";
-import { createCredential } from "../credentials-actions";
+import { createCredential, updateCredential } from "../credentials-actions";
+import { CredentialListItem } from "../types";
 
 const CREDENTIAL_TYPES = [
     { value: "OPENAI", label: "OpenAI" },
@@ -34,13 +35,30 @@ interface CreateCredentialModalProps {
     onOpenChange: (open: boolean) => void;
     orgId: string;
     onCreated: () => void;
+    credentialToEdit?: CredentialListItem | null;
 }
 
-export function CreateCredentialModal({ open, onOpenChange, orgId, onCreated }: CreateCredentialModalProps) {
+export function CreateCredentialModal({ open, onOpenChange, orgId, onCreated, credentialToEdit }: CreateCredentialModalProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [name, setName] = useState("");
     const [value, setValue] = useState("");
     const [type, setType] = useState<CredentialType | "">("");
+
+    const isEdit = !!credentialToEdit;
+
+    useEffect(() => {
+        if (open) {
+            if (credentialToEdit) {
+                setName(credentialToEdit.name);
+                setType(credentialToEdit.type);
+                setValue(credentialToEdit.value);
+            } else {
+                setName("");
+                setValue("");
+                setType("");
+            }
+        }
+    }, [open, credentialToEdit]);
 
     const handleCreate = async () => {
         if (!name.trim()) return toast.error("Please enter a name");
@@ -51,24 +69,28 @@ export function CreateCredentialModal({ open, onOpenChange, orgId, onCreated }: 
         setIsSubmitting(true);
 
         try {
-            await createCredential({
-                name,
-                type: type as CredentialType,
-                value,
-                orgId
-            });
-
-            toast.success("Credential created securely");
+            if (isEdit && credentialToEdit) {
+                await updateCredential({
+                    id: credentialToEdit.id,
+                    name,
+                    value,
+                    orgId
+                });
+                toast.success("Credential updated securely");
+            } else {
+                await createCredential({
+                    name,
+                    type: type as CredentialType,
+                    value,
+                    orgId
+                });
+                toast.success("Credential created securely");
+            }
             onCreated();
-
-            // Reset form
-            setName("");
-            setValue("");
-            setType("");
             onOpenChange(false);
         } catch (error) {
             console.error(error);
-            toast.error("Failed to create credential. Please try again.");
+            toast.error(isEdit ? "Failed to update credential." : "Failed to create credential. Please try again.");
         } finally {
             setIsSubmitting(false);
         }
@@ -78,7 +100,7 @@ export function CreateCredentialModal({ open, onOpenChange, orgId, onCreated }: 
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>Add API Credential</DialogTitle>
+                    <DialogTitle>{isEdit ? "Edit API Credential" : "Add API Credential"}</DialogTitle>
                     <DialogDescription>
                         Securely store API keys for use across your workflows. Keys are encrypted at rest.
                     </DialogDescription>
@@ -101,7 +123,7 @@ export function CreateCredentialModal({ open, onOpenChange, orgId, onCreated }: 
                         <Select
                             value={type}
                             onValueChange={(val: CredentialType) => setType(val)}
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || isEdit}
                         >
                             <SelectTrigger>
                                 <SelectValue placeholder="Select a provider..." />
@@ -126,6 +148,7 @@ export function CreateCredentialModal({ open, onOpenChange, orgId, onCreated }: 
                             onChange={(e) => setValue(e.target.value)}
                             disabled={isSubmitting}
                         />
+                        {isEdit && <p className="text-xs text-muted-foreground">Leave as initially masked value to keep existing key.</p>}
                     </div>
                 </div>
 
@@ -141,7 +164,7 @@ export function CreateCredentialModal({ open, onOpenChange, orgId, onCreated }: 
                         {isSubmitting ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         ) : (
-                            "Save Credential"
+                            isEdit ? "Save Changes" : "Save Credential"
                         )}
                     </Button>
                 </DialogFooter>

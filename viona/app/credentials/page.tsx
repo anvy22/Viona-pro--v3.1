@@ -28,6 +28,7 @@ export default function CredentialsPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [credentialToEdit, setCredentialToEdit] = useState<CredentialListItem | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
 
     const { selectedOrgId, orgs, setSelectedOrgId } = useOrgStore();
@@ -207,7 +208,10 @@ export default function CredentialsPage() {
                             </Button>
 
                             {canManage && (
-                                <Button onClick={() => setIsCreateOpen(true)}>
+                                <Button onClick={() => {
+                                    setCredentialToEdit(null);
+                                    setIsCreateOpen(true);
+                                }}>
                                     <Plus className="h-4 w-4 mr-2" />
                                     Create Credential
                                 </Button>
@@ -232,7 +236,10 @@ export default function CredentialsPage() {
                                 </Button>
                             </div>
                         ) : (
-                            <EmptyState onCreate={canManage ? () => setIsCreateOpen(true) : undefined} />
+                            <EmptyState onCreate={canManage ? () => {
+                                setCredentialToEdit(null);
+                                setIsCreateOpen(true);
+                            } : undefined} />
                         )
                     ) : (
                         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -241,6 +248,10 @@ export default function CredentialsPage() {
                                     key={c.id}
                                     credential={c}
                                     onDelete={() => handleDelete(c.id)}
+                                    onEdit={() => {
+                                        setCredentialToEdit(c);
+                                        setIsCreateOpen(true);
+                                    }}
                                     canManage={canManage}
                                 />
                             ))}
@@ -251,9 +262,13 @@ export default function CredentialsPage() {
                 {canManage && (
                     <CreateCredentialModal
                         open={isCreateOpen}
-                        onOpenChange={setIsCreateOpen}
+                        onOpenChange={(open) => {
+                            setIsCreateOpen(open);
+                            if (!open) setCredentialToEdit(null);
+                        }}
                         orgId={selectedOrgId}
                         onCreated={fetchCredentials}
+                        credentialToEdit={credentialToEdit}
                     />
                 )}
             </div>
