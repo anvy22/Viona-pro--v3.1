@@ -19,6 +19,7 @@ type OpenAiData = {
     model?: string;
     systemPrompt?: string;
     userPrompt?: string;
+    credentialId?: string | null;
 }
 
 export const openAiExecutor: NodeExecutor<OpenAiData> = async ({ data, nodeId, context, step, publish }) => {
@@ -57,15 +58,26 @@ export const openAiExecutor: NodeExecutor<OpenAiData> = async ({ data, nodeId, c
 
     const userPrompt = Handlebars.compile(data.userPrompt)(context);
 
-    let credentials = process.env.OPENAI_API_KEY!;
+    let credentials = "";
 
     try {
-        const node = await prisma.node.findUnique({
-            where: { id: nodeId },
-            include: { credential: true }
-        });
-        if (node?.credential?.value) {
-            credentials = decrypt(node.credential.value);
+        let credentialId = data.credentialId;
+
+        if (!credentialId) {
+            const node = await prisma.node.findUnique({
+                where: { id: nodeId },
+                select: { credentialId: true }
+            });
+            credentialId = node?.credentialId;
+        }
+
+        if (credentialId) {
+            const credential = await prisma.credential.findUnique({
+                where: { id: credentialId }
+            });
+            if (credential?.value) {
+                credentials = decrypt(credential.value);
+            }
         }
     } catch (err) {
         console.error("Failed to load credential for node", err);
