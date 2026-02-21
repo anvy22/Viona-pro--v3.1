@@ -9,6 +9,9 @@ import { openAiExecutor } from "../../executions/openai/executor";
 import { anthropicExecutor } from "../../executions/anthropic/executor";
 import { discordExecutor } from "../../executions/discord/executor";
 import { slackExecutor } from "../../executions/slack/executor";
+import { aiAgentExecutor } from "../../executions/ai-agent/executor";
+import { chatModelExecutor } from "../../executions/chat-model/executor";
+import { memoryExecutor } from "../../executions/memory/executor";
 
 export const executorRegistry: Record<NodeType, NodeExecutor<any>> = {
     [NodeType.MANUAL_TRIGGER]: manualTriggerExecutor,
@@ -21,6 +24,9 @@ export const executorRegistry: Record<NodeType, NodeExecutor<any>> = {
     [NodeType.OPENAI]: openAiExecutor,
     [NodeType.DISCORD]: discordExecutor,
     [NodeType.SLACK]: slackExecutor,
+    [NodeType.AI_AGENT]: aiAgentExecutor,
+    [NodeType.CHAT_MODEL]: chatModelExecutor,
+    [NodeType.MEMORY]: memoryExecutor,
 };
 
 export const getExecutor = (type: NodeType): NodeExecutor => {

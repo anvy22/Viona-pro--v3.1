@@ -5,6 +5,9 @@ import { useReactFlow } from "@xyflow/react";
 import {
     GlobeIcon,
     MousePointerIcon,
+    Bot,
+    MessageSquare,
+    BrainCircuit,
 } from "lucide-react"
 import { useCallback } from "react";
 import { toast } from "sonner";
@@ -86,8 +89,29 @@ const executionNodes: NodeTypeOption[] = [
         description: "Send a message to Slack",
         icon: "/logos/slack.svg",
     },
+    {
+        type: NodeType.AI_AGENT,
+        label: "AI Agent",
+        description: "Autonomous agent with tools, memory & chat model",
+        icon: Bot,
+    },
 
 
+];
+
+const subNodes: NodeTypeOption[] = [
+    {
+        type: NodeType.CHAT_MODEL,
+        label: "Chat Model",
+        description: "Select AI provider and model for an agent",
+        icon: MessageSquare,
+    },
+    {
+        type: NodeType.MEMORY,
+        label: "Memory",
+        description: "Window buffer memory for conversation history",
+        icon: BrainCircuit,
+    },
 ];
 
 interface NodeSelectorProps {
@@ -180,6 +204,38 @@ export function NodeSelector({
                 <Separator />
                 <div>
                     {executionNodes.map((nodeType) => {
+                        const Icon = nodeType.icon;
+
+                        return (
+                            <div
+                                key={nodeType.type}
+                                className="w-full justify-start h-auto py-5 px-4 rounded-none cursor-pointer border-l-2 border-transparent hover:border-l-primary"
+                                onClick={() => handleNodeSelect(nodeType)}
+                            >
+                                <div className="flex items-center gap-6 w-full overflow-hidden">
+                                    {typeof Icon === "string" ? (
+                                        <img src={Icon} alt={nodeType.label} className="size-5 object-contain rounded-sm" />
+                                    ) : (
+                                        <Icon className="size-5" />
+                                    )}
+                                    <div className="flex flex-col items-start text-left">
+                                        <span className="font-medium text-sm">{nodeType.label}</span>
+                                        <span className="text-muted-foreground text-xs">{nodeType.description}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+                <Separator />
+                <SheetHeader className="px-1 pt-4">
+                    <SheetTitle className="text-sm">Agent Nodes</SheetTitle>
+                    <SheetDescription className="text-xs">
+                        Connect these to an AI Agent&apos;s bottom handles.
+                    </SheetDescription>
+                </SheetHeader>
+                <div>
+                    {subNodes.map((nodeType) => {
                         const Icon = nodeType.icon;
 
                         return (

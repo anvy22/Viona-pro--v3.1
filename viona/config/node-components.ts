@@ -10,6 +10,9 @@ import { OpenAiNode } from "@/app/workflows/components/executions/openai/node";
 import { AnthropicNode } from "@/app/workflows/components/executions/anthropic/node";
 import { DiscordNode } from "@/app/workflows/components/executions/discord/node";
 import { SlackNode } from "@/app/workflows/components/executions/slack/node";
+import { AiAgentNode } from "@/app/workflows/components/executions/ai-agent/node";
+import { ChatModelNode } from "@/app/workflows/components/executions/chat-model/node";
+import { MemoryNode } from "@/app/workflows/components/executions/memory/node";
 
 
 
@@ -25,6 +28,9 @@ export const nodeComponents = {
     [NodeType.ANTHROPIC]: AnthropicNode,
     [NodeType.DISCORD]: DiscordNode,
     [NodeType.SLACK]: SlackNode,
+    [NodeType.AI_AGENT]: AiAgentNode,
+    [NodeType.CHAT_MODEL]: ChatModelNode,
+    [NodeType.MEMORY]: MemoryNode,
 } as const satisfies NodeTypes;
 
 

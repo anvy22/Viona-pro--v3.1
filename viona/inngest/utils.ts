@@ -10,9 +10,15 @@ const TRIGGER_TYPES: string[] = [
 ];
 
 export const topologicalSort = (nodes: Node[], connections: Connection[]) => {
-    // Build an adjacency list from connections
+    // Only follow main-flow connections for execution ordering.
+    // Sub-node connections (chat-model, memory, tool) are read by the AI Agent at runtime.
+    const mainConnections = connections.filter(
+        (c) => !c.toInput || c.toInput === "main" || c.toInput === "target-1"
+    );
+
+    // Build an adjacency list from main connections
     const adjacency = new Map<string, string[]>();
-    for (const conn of connections) {
+    for (const conn of mainConnections) {
         if (!adjacency.has(conn.fromNodeId)) {
             adjacency.set(conn.fromNodeId, []);
         }
@@ -41,7 +47,7 @@ export const topologicalSort = (nodes: Node[], connections: Connection[]) => {
     const reachableNodes = nodes.filter((n) => reachable.has(n.id));
 
     // If no connections among reachable nodes, return them as-is (trigger only)
-    const reachableEdges: [string, string][] = connections
+    const reachableEdges: [string, string][] = mainConnections
         .filter((c) => reachable.has(c.fromNodeId) && reachable.has(c.toNodeId))
         .map((c) => [c.fromNodeId, c.toNodeId]);
 
