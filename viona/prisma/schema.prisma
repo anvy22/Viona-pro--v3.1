@@ -239,6 +239,9 @@ enum NodeType {
   OPENAI
   DISCORD
   SLACK
+  AI_AGENT
+  CHAT_MODEL
+  MEMORY
 }
 
 model Node{
