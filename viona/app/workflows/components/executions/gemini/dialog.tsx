@@ -8,8 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { CredentialSelector } from "../components/CredentialSelector";
+import { useOrgStore } from "@/hooks/useOrgStore";
 
 export const AVAILABLE_MODELS = [
     "gemini-1.5-flash",
@@ -33,12 +35,16 @@ export type GeminiFormValues = z.infer<typeof formSchema>;
 interface Props {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onSubmit: (values: z.infer<typeof formSchema>) => void;
+    onSubmit: (values: GeminiFormValues, credentialId: string | null) => void;
     defaultValues?: Partial<GeminiFormValues>;
+    defaultCredentialId?: string | null;
 };
 
 
-export const GeminiDialog = ({ open, onOpenChange, onSubmit, defaultValues = {} }: Props) => {
+export const GeminiDialog = ({ open, onOpenChange, onSubmit, defaultValues = {}, defaultCredentialId = null }: Props) => {
+    const [credentialId, setCredentialId] = useState<string | null>(defaultCredentialId);
+    const { selectedOrgId } = useOrgStore();
+
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
@@ -57,13 +63,14 @@ export const GeminiDialog = ({ open, onOpenChange, onSubmit, defaultValues = {} 
                 systemPrompt: defaultValues.systemPrompt || "",
                 userPrompt: defaultValues.userPrompt || "",
             });
+            setCredentialId(defaultCredentialId ?? null);
         }
-    }, [open, defaultValues, form]);
+    }, [open, defaultValues, defaultCredentialId, form]);
 
     const watchVariableName = form.watch("variableName") || "variableName";
 
     const handleSubmit = (values: z.infer<typeof formSchema>) => {
-        onSubmit(values);
+        onSubmit(values, credentialId);
         onOpenChange(false);
     };
 
@@ -87,7 +94,16 @@ export const GeminiDialog = ({ open, onOpenChange, onSubmit, defaultValues = {} 
                     </DialogDescription>
                 </DialogHeader>
                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8 mt-4">
+                    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 mt-4">
+
+                        {/* Credential Selector */}
+                        <CredentialSelector
+                            orgId={selectedOrgId}
+                            credentialType="GEMINI"
+                            value={credentialId}
+                            onChange={setCredentialId}
+                        />
+
                         <FormField
                             control={form.control}
                             name="variableName"
@@ -132,7 +148,7 @@ export const GeminiDialog = ({ open, onOpenChange, onSubmit, defaultValues = {} 
                                         </SelectContent>
                                     </Select>
                                     <FormDescription>
-                                        The Google gemini model to use for completion
+                                        The Google Gemini model to use for completion
                                     </FormDescription>
                                     <FormMessage />
                                 </FormItem>
@@ -193,4 +209,3 @@ export const GeminiDialog = ({ open, onOpenChange, onSubmit, defaultValues = {} 
         </Dialog>
     )
 }
-
