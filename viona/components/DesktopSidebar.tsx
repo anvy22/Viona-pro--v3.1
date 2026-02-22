@@ -36,9 +36,8 @@ const routes = [
   { href: "/warehouse", label: "Warehouse", icon: Warehouse },
   { href: "/workflows", label: "Workflows", icon: Layers2Icon },
   { href: "/chat", label: "Chat", icon: MessageCircle },
-  { href: "/integrations", label: "Integrations", icon: Blocks },
   { href: "/credentials", label: "Credentials", icon: ShieldCheckIcon },
-  { href: "/billing", label: "Billing", icon: CoinsIcon },
+  // { href: "/billing", label: "Billing", icon: CoinsIcon },
   { href: "/organization", label: "Organization", icon: Building2 }
 ];
 

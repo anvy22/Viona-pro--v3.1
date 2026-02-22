@@ -15,24 +15,37 @@ export async function GET(request: NextRequest) {
 
     const stream = new ReadableStream({
         async start(controller) {
+            let isClosed = false;
             // Send initial ping
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "connected" })}\n\n`));
+            try {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "connected" })}\n\n`));
+            } catch (error) {
+                isClosed = true;
+            }
 
             // Subscribe to Redis Pub/Sub for this workflow
             const unsubscribe = await subscribeToStatus(workflowId, (data) => {
+                if (isClosed) return;
                 try {
                     controller.enqueue(
                         encoder.encode(`data: ${JSON.stringify(data)}\n\n`)
                     );
                 } catch {
                     // Stream closed
+                    isClosed = true;
                 }
             });
 
             // Clean up when the client disconnects
             request.signal.addEventListener("abort", async () => {
+                if (isClosed) return;
+                isClosed = true;
                 await unsubscribe();
-                controller.close();
+                try {
+                    controller.close();
+                } catch {
+                    // Ignore if already closed
+                }
             });
         },
     });
