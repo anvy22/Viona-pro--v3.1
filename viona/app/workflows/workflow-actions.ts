@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { type Node, type Edge } from "@xyflow/react";
 import { auth } from "@clerk/nextjs/server";
 import { Prisma, NodeType } from "@prisma/client";
-import { sendWorkflowExecution } from "@/inngest/utils";
+import { enqueueWorkflow } from "@/lib/queue";
 
 
 export type WorkflowWithNodesAndEdges = {
@@ -207,11 +207,10 @@ export async function executeWorkflow(workflowId: string) {
     });
 
 
-    await sendWorkflowExecution({
+    await enqueueWorkflow({
         workflowId,
     });
 
-    
     return workflow;
 }
 

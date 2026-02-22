@@ -3,19 +3,12 @@ import { memo, useState } from "react";
 import { BaseTriggerNode } from "../base-trigger-node";
 import { OrderTriggerDialog } from "./dialog";
 import { useNodeStatus } from "@/app/workflows/components/executions/hooks/use-node-status";
-import { ORDER_TRIGGER_CHANNEL_NAME } from "@/inngest/channels/order-trigger";
-import { fetchOrderTriggerRealtimeToken } from "./actions";
 import { ShoppingCart } from "lucide-react";
 
 export const OrderTriggerNode = memo((props: NodeProps) => {
     const [open, setOpen] = useState(false);
 
-    const nodeStatus = useNodeStatus({
-        nodeId: props.id,
-        channel: ORDER_TRIGGER_CHANNEL_NAME,
-        topic: "status",
-        refreshToken: fetchOrderTriggerRealtimeToken,
-    });
+    const nodeStatus = useNodeStatus({ nodeId: props.id });
 
     const handleOpenSettings = () => setOpen(true);
     return (

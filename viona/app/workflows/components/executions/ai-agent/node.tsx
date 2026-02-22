@@ -4,8 +4,6 @@ import { type NodeProps, type Node, Position, useReactFlow } from "@xyflow/react
 import { memo, useState } from "react";
 import { AiAgentDialog, type AiAgentFormValues } from "./dialog";
 import { useNodeStatus } from "@/app/workflows/components/executions/hooks/use-node-status";
-import { AI_AGENT_CHANNEL_NAME } from "@/inngest/channels/ai-agent";
-import { fetchAiAgentRealtimeToken } from "./actions";
 import { BaseHandle } from "@/components/react-flow/base-handle";
 import { WorkflowNode } from "@/components/workflow-node";
 import { type NodeStatus, NodeStatusIndicator } from "@/components/react-flow/node-status-indicator";
@@ -24,12 +22,7 @@ export const AiAgentNode = memo((props: NodeProps<AiAgentNodeType>) => {
     const [open, setOpen] = useState(false);
     const { setNodes, setEdges } = useReactFlow();
 
-    const nodeStatus = useNodeStatus({
-        nodeId: props.id,
-        channel: AI_AGENT_CHANNEL_NAME,
-        topic: "status",
-        refreshToken: fetchAiAgentRealtimeToken,
-    });
+    const nodeStatus = useNodeStatus({ nodeId: props.id });
 
     const handleOpenSettings = () => setOpen(true);
 

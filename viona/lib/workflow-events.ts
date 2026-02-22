@@ -2,7 +2,7 @@
  * Helper functions that emit Inngest events when inventory or order data changes.
  * Call these explicitly after Prisma writes in your API routes/actions.
  */
-import { inngest } from "@/inngest/client";
+import { enqueueWorkflow } from "./queue";
 import prisma from "@/lib/prisma";
 import { NodeType } from "@prisma/client";
 
@@ -28,22 +28,19 @@ export async function emitInventoryEvent(
         });
 
         for (const wf of workflows) {
-            await inngest.send({
-                name: "workflows/execute.workflow",
-                data: {
-                    workflowId: wf.id,
-                    initialData: {
-                        inventory: {
-                            action,
-                            model,
-                            productId: data?.product_id?.toString() ?? data?.id?.toString(),
-                            productName: data?.name ?? undefined,
-                            sku: data?.sku ?? undefined,
-                            quantity: data?.quantity ?? undefined,
-                            data: JSON.parse(JSON.stringify(data, (_key, value) =>
-                                typeof value === "bigint" ? value.toString() : value
-                            )),
-                        },
+            await enqueueWorkflow({
+                workflowId: wf.id,
+                initialData: {
+                    inventory: {
+                        action,
+                        model,
+                        productId: data?.product_id?.toString() ?? data?.id?.toString(),
+                        productName: data?.name ?? undefined,
+                        sku: data?.sku ?? undefined,
+                        quantity: data?.quantity ?? undefined,
+                        data: JSON.parse(JSON.stringify(data, (_key, value) =>
+                            typeof value === "bigint" ? value.toString() : value
+                        )),
                     },
                 },
             });
@@ -76,23 +73,20 @@ export async function emitOrderEvent(
         });
 
         for (const wf of workflows) {
-            await inngest.send({
-                name: "workflows/execute.workflow",
-                data: {
-                    workflowId: wf.id,
-                    initialData: {
-                        order: {
-                            action,
-                            model,
-                            orderId: data?.order_id?.toString() ?? data?.id?.toString(),
-                            status: data?.status ?? undefined,
-                            customerName: data?.customer_name ?? undefined,
-                            customerEmail: data?.customer_email ?? undefined,
-                            total: data?.total_amount?.toString() ?? undefined,
-                            data: JSON.parse(JSON.stringify(data, (_key, value) =>
-                                typeof value === "bigint" ? value.toString() : value
-                            )),
-                        },
+            await enqueueWorkflow({
+                workflowId: wf.id,
+                initialData: {
+                    order: {
+                        action,
+                        model,
+                        orderId: data?.order_id?.toString() ?? data?.id?.toString(),
+                        status: data?.status ?? undefined,
+                        customerName: data?.customer_name ?? undefined,
+                        customerEmail: data?.customer_email ?? undefined,
+                        total: data?.total_amount?.toString() ?? undefined,
+                        data: JSON.parse(JSON.stringify(data, (_key, value) =>
+                            typeof value === "bigint" ? value.toString() : value
+                        )),
                     },
                 },
             });

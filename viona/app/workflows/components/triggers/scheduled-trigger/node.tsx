@@ -5,8 +5,6 @@ import { memo, useState } from "react";
 import { BaseTriggerNode } from "../base-trigger-node";
 import { ScheduledTriggerDialog, type ScheduledTriggerFormValues } from "./dialog";
 import { useNodeStatus } from "@/app/workflows/components/executions/hooks/use-node-status";
-import { SCHEDULED_TRIGGER_CHANNEL_NAME } from "@/inngest/channels/scheduled-trigger";
-import { fetchScheduledTriggerRealtimeToken } from "./actions";
 import { Clock } from "lucide-react";
 
 type ScheduledTriggerNodeType = Node<Partial<ScheduledTriggerFormValues>>;
@@ -15,12 +13,7 @@ export const ScheduledTriggerNode = memo((props: NodeProps<ScheduledTriggerNodeT
     const [open, setOpen] = useState(false);
     const { setNodes } = useReactFlow();
 
-    const nodeStatus = useNodeStatus({
-        nodeId: props.id,
-        channel: SCHEDULED_TRIGGER_CHANNEL_NAME,
-        topic: "status",
-        refreshToken: fetchScheduledTriggerRealtimeToken,
-    });
+    const nodeStatus = useNodeStatus({ nodeId: props.id });
 
     const handleSubmit = (values: ScheduledTriggerFormValues) => {
         setNodes((nodes) => nodes.map((node) =>

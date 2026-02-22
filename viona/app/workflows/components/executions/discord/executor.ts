@@ -1,15 +1,11 @@
 import type { NodeExecutor } from "../types";
-import { NonRetriableError } from "inngest";
 import Handlebars from "handlebars";
-import { discordChannel } from "@/inngest/channels/discord";
 import { decode } from "html-entities";
 import ky from "ky";
-
 
 Handlebars.registerHelper("json", (context) => {
     const jsonString = JSON.stringify(context, null, 2);
     const safeString = new Handlebars.SafeString(jsonString);
-
     return safeString;
 });
 
@@ -20,35 +16,19 @@ type DiscordData = {
     username?: string;
 }
 
-export const discordExecutor: NodeExecutor<DiscordData> = async ({ data, nodeId, context, step, publish }) => {
+export const discordExecutor: NodeExecutor<DiscordData> = async ({ data, nodeId, context, publish }) => {
 
-    await publish(
-        discordChannel().status({
-            nodeId,
-            status: "loading",
-        }),
-    );
+    await publish(nodeId, "loading");
 
     if (!data.webhookUrl) {
-        await publish(
-            discordChannel().status({
-                nodeId,
-                status: "error",
-            }),
-        );
-        throw new NonRetriableError("Discord node: Webhook URL is required");
+        await publish(nodeId, "error");
+        throw new Error("Discord node: Webhook URL is required");
     }
 
     if (!data.content) {
-        await publish(
-            discordChannel().status({
-                nodeId,
-                status: "error",
-            }),
-        );
-        throw new NonRetriableError("Discord node: Content is required");
+        await publish(nodeId, "error");
+        throw new Error("Discord node: Content is required");
     }
-
 
     const rawContent = Handlebars.compile(data.content)(context);
     const content = decode(rawContent);
@@ -56,54 +36,29 @@ export const discordExecutor: NodeExecutor<DiscordData> = async ({ data, nodeId,
         ? decode(Handlebars.compile(data.username)(context))
         : undefined;
 
-
     try {
+        await ky.post(data.webhookUrl!, {
+            json: {
+                content: content.slice(0, 2000),
+                username,
+            },
+        });
 
-        const result = await step.run("discord-webhook", async () => {
-            await ky.post(data.webhookUrl!, {
-                json: {
-                    content: content.slice(0, 2000),
-                    username,
-                },
-            });
+        if (!data.variableName) {
+            await publish(nodeId, "error");
+            throw new Error("Discord node: Variable name is required");
+        }
 
-            if (!data.variableName) {
-                await publish(
-                    discordChannel().status({
-                        nodeId,
-                        status: "error",
-                    }),
-                );
-                throw new NonRetriableError("Discord node: Variable name is required");
+        await publish(nodeId, "success");
+
+        return {
+            ...context,
+            [data.variableName]: {
+                messageContent: content.slice(0, 2000),
             }
-
-            return {
-                ...context,
-                [data.variableName]: {
-                    messageContent: content.slice(0, 2000),
-                }
-            }
-        })
-
-        await publish(
-            discordChannel().status({
-                nodeId,
-                status: "success",
-            }),
-        );
-
-        return result;
-
+        }
     } catch (error) {
-
-        await publish(
-            discordChannel().status({
-                nodeId,
-                status: "error",
-            }),
-        );
-
+        await publish(nodeId, "error");
         throw error;
     }
-
 };

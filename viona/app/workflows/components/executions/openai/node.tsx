@@ -4,8 +4,6 @@ import { BaseExecutionNode } from "@/app/workflows/components/executions/base-ex
 import { memo, useState } from "react";
 import { OpenAiDialog, type OpenAiFormValues } from "./dialog";
 import { useNodeStatus } from "@/app/workflows/components/executions/hooks/use-node-status";
-import { OPENAI_CHANNEL_NAME } from "@/inngest/channels/openai";
-import { fetchOpenAIRealtimeToken } from "@/app/workflows/components/executions/openai/actions";
 import { AVAILABLE_MODELS } from "./dialog";
 import { attachCredentialToNode } from "@/app/credentials/credentials-actions";
 
@@ -23,12 +21,7 @@ export const OpenAiNode = memo((props: NodeProps<OpenAiNodeType>) => {
     const [open, setOpen] = useState(false);
     const { setNodes } = useReactFlow();
 
-    const nodeStatus = useNodeStatus({
-        nodeId: props.id,
-        channel: OPENAI_CHANNEL_NAME,
-        topic: "status",
-        refreshToken: fetchOpenAIRealtimeToken,
-    });
+    const nodeStatus = useNodeStatus({ nodeId: props.id });
 
     const handleOpenSettings = () => setOpen(true);
 
