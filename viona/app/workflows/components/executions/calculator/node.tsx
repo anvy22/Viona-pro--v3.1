@@ -29,8 +29,8 @@ export const CalculatorNode = memo((props: NodeProps<Node>) => {
         <>
             <CalculatorDialog open={open} onOpenChange={setOpen} />
             <WorkflowNode name="Calculator" description="Math expressions" onSettings={() => setOpen(true)} onDelete={handleDelete}>
-                <NodeStatusIndicator status={nodeStatus} variant="border">
-                    <BaseNode status={nodeStatus} onDoubleClick={() => setOpen(true)}>
+                <NodeStatusIndicator status={nodeStatus} variant="border" roundedClass="rounded-full">
+                    <BaseNode className="rounded-full" status={nodeStatus} onDoubleClick={() => setOpen(true)}>
                         <BaseNodeContent>
                             <CalcIcon className="size-4 text-muted-foreground" />
                             <BaseHandle position={Position.Top} type="source" id="source-1" />

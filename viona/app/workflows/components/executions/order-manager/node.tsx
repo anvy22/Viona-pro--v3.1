@@ -29,8 +29,8 @@ export const OrderManagerNode = memo((props: NodeProps<Node>) => {
         <>
             <OrderManagerDialog open={open} onOpenChange={setOpen} />
             <WorkflowNode name="Orders" description="Auto-configured" onSettings={() => setOpen(true)} onDelete={handleDelete}>
-                <NodeStatusIndicator status={nodeStatus} variant="border">
-                    <BaseNode status={nodeStatus} onDoubleClick={() => setOpen(true)}>
+                <NodeStatusIndicator status={nodeStatus} variant="border" roundedClass="rounded-full">
+                    <BaseNode className="rounded-full" status={nodeStatus} onDoubleClick={() => setOpen(true)}>
                         <BaseNodeContent>
                             <ShoppingCart className="size-4 text-muted-foreground" />
                             <BaseHandle position={Position.Top} type="source" id="source-1" />

@@ -13,6 +13,7 @@ import {
     Calculator,
     PackageSearch,
     ShoppingCart,
+    Clock,
 } from "lucide-react"
 import { useCallback } from "react";
 import { toast } from "sonner";
@@ -54,7 +55,24 @@ const triggerNodes: NodeTypeOption[] = [
         description: "Runs the flow when a Stripe event is triggered",
         icon: "/logos/stripe.svg",
     },
-
+    {
+        type: NodeType.INVENTORY_TRIGGER,
+        label: "Inventory Trigger",
+        description: "Runs when inventory is updated",
+        icon: PackageSearch,
+    },
+    {
+        type: NodeType.ORDER_TRIGGER,
+        label: "Order Trigger",
+        description: "Runs when an order is created or updated",
+        icon: ShoppingCart,
+    },
+    {
+        type: NodeType.SCHEDULED_TRIGGER,
+        label: "Scheduled",
+        description: "Runs on a cron schedule",
+        icon: Clock,
+    },
 ];
 
 const executionNodes: NodeTypeOption[] = [

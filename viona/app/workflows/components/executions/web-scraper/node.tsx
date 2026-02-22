@@ -39,8 +39,8 @@ export const WebScraperNode = memo((props: NodeProps<WebScraperNodeType>) => {
         <>
             <WebScraperDialog open={open} onOpenChange={setOpen} onSubmit={handleSubmit} defaultValues={props.data} />
             <WorkflowNode name="Web Scraper" description={description} onSettings={() => setOpen(true)} onDelete={handleDelete}>
-                <NodeStatusIndicator status={nodeStatus} variant="border">
-                    <BaseNode status={nodeStatus} onDoubleClick={() => setOpen(true)}>
+                <NodeStatusIndicator status={nodeStatus} variant="border" roundedClass="rounded-full">
+                    <BaseNode className="rounded-full" status={nodeStatus} onDoubleClick={() => setOpen(true)}>
                         <BaseNodeContent>
                             <Globe className="size-4 text-muted-foreground" />
                             <BaseHandle position={Position.Top} type="source" id="source-1" />

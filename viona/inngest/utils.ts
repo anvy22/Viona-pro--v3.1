@@ -6,6 +6,9 @@ const TRIGGER_TYPES: string[] = [
     NodeType.MANUAL_TRIGGER,
     NodeType.GOOGLE_FORM_TRIGGER,
     NodeType.STRIPE_TRIGGER,
+    NodeType.INVENTORY_TRIGGER,
+    NodeType.ORDER_TRIGGER,
+    NodeType.SCHEDULED_TRIGGER,
     NodeType.INITIAL,
 ];
 
