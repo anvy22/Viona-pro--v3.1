@@ -9,6 +9,7 @@ selection and token-by-token streaming.
 import logging
 import json
 from typing import Optional
+from datetime import datetime
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -189,10 +190,11 @@ class AnalyticsAgent(BaseAgent):
         if revenue_data and isinstance(revenue_data.get("data"), list):
             data_points = revenue_data["data"]
             if len(data_points) >= 3:
+                period_type = revenue_data.get('period_type', 'day')
                 analytics.charts.append(ChartBlock(
                     chart_type="line",
-                    title=f"Revenue Trend ({revenue_data.get('period_type', 'day')})",
-                    x=[str(d.get("period", ""))[:10] for d in data_points],
+                    title=f"Revenue Trend ({period_type.capitalize()}ly)",
+                    x=[_format_period_label(d.get("period", ""), period_type) for d in data_points],
                     y=[float(d.get("revenue", 0)) for d in data_points],
                     x_label="Period",
                     y_label="Revenue ($)",
@@ -203,15 +205,29 @@ class AnalyticsAgent(BaseAgent):
         if aov_data and isinstance(aov_data.get("data"), list):
             data_points = aov_data["data"]
             if len(data_points) >= 3:
+                period_type = aov_data.get('period_type', 'week')
                 analytics.charts.append(ChartBlock(
                     chart_type="line",
                     title="Average Order Value Trend",
-                    x=[str(d.get("period", ""))[:10] for d in data_points],
+                    x=[_format_period_label(d.get("period", ""), period_type) for d in data_points],
                     y=[float(d.get("aov", 0)) for d in data_points],
                     x_label="Period",
                     y_label="AOV ($)",
                 ))
         
+        # Add bar chart for top products by revenue
+        rev_by_product = tool_results.get("get_revenue_by_product", {})
+        if rev_by_product and isinstance(rev_by_product.get("products"), list):
+            prods = [p for p in rev_by_product["products"] if p.get("revenue", 0) > 0][:8]
+            if len(prods) >= 2:
+                analytics.charts.append(ChartBlock(
+                    chart_type="bar",
+                    title="Revenue by Product",
+                    x=[p["name"] for p in prods],
+                    y=[float(p["revenue"]) for p in prods],
+                    y_label="Revenue ($)",
+                ))
+
         # Add table for top products if available
         perf_data = tool_results.get("get_product_performance", {})
         if perf_data and isinstance(perf_data.get("products"), list):
@@ -235,3 +251,22 @@ class AnalyticsAgent(BaseAgent):
                 )
         
         return AgentOutput.analytics_response(analytics=analytics, confidence=0.85)
+
+
+def _format_period_label(period_str: str, period_type: str) -> str:
+    """Convert ISO timestamp to a short, readable chart label."""
+    if not period_str:
+        return ""
+    try:
+        # Parse ISO format — truncate to date part if needed
+        dt = datetime.fromisoformat(str(period_str)[:19].replace("Z", ""))
+        if period_type == "day":
+            return dt.strftime("%b %-d")      # e.g. "Jan 1"
+        elif period_type == "week":
+            return dt.strftime("%-d %b")     # e.g. "1 Jan"
+        elif period_type == "month":
+            return dt.strftime("%b %Y")       # e.g. "Jan 2024"
+        else:
+            return dt.strftime("%b %-d")      # fallback
+    except Exception:
+        return str(period_str)[:10]           # fallback to raw string
