@@ -4,8 +4,6 @@ import { BaseExecutionNode } from "@/app/workflows/components/executions/base-ex
 import { memo, useState } from "react";
 import { SlackDialog, type SlackFormValues } from "./dialog";
 import { useNodeStatus } from "@/app/workflows/components/executions/hooks/use-node-status";
-import { SLACK_CHANNEL_NAME } from "@/inngest/channels/slack";
-import { fetchSlackRealtimeToken } from "@/app/workflows/components/executions/slack/actions";
 import { attachCredentialToNode } from "@/app/credentials/credentials-actions";
 
 type SlackNodeData = {
@@ -19,12 +17,7 @@ export const SlackNode = memo((props: NodeProps<SlackNodeType>) => {
     const [open, setOpen] = useState(false);
     const { setNodes } = useReactFlow();
 
-    const nodeStatus = useNodeStatus({
-        nodeId: props.id,
-        channel: SLACK_CHANNEL_NAME,
-        topic: "status",
-        refreshToken: fetchSlackRealtimeToken,
-    });
+    const nodeStatus = useNodeStatus({ nodeId: props.id });
 
     const handleOpenSettings = () => setOpen(true);
 

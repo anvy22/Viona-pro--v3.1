@@ -4,8 +4,6 @@ import { BaseExecutionNode } from "@/app/workflows/components/executions/base-ex
 import { memo, useState } from "react";
 import { DiscordDialog, type DiscordFormValues } from "./dialog";
 import { useNodeStatus } from "@/app/workflows/components/executions/hooks/use-node-status";
-import { DISCORD_CHANNEL_NAME } from "@/inngest/channels/discord";
-import { fetchDiscordRealtimeToken } from "@/app/workflows/components/executions/discord/actions";
 import { attachCredentialToNode } from "@/app/credentials/credentials-actions";
 
 type DiscordNodeData = {
@@ -20,12 +18,7 @@ export const DiscordNode = memo((props: NodeProps<DiscordNodeType>) => {
     const [open, setOpen] = useState(false);
     const { setNodes } = useReactFlow();
 
-    const nodeStatus = useNodeStatus({
-        nodeId: props.id,
-        channel: DISCORD_CHANNEL_NAME,
-        topic: "status",
-        refreshToken: fetchDiscordRealtimeToken,
-    });
+    const nodeStatus = useNodeStatus({ nodeId: props.id });
 
     const handleOpenSettings = () => setOpen(true);
 

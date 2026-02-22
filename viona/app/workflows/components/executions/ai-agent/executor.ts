@@ -1,7 +1,5 @@
-import type { NodeExecutor } from "../types";
-import { NonRetriableError } from "inngest";
+import type { NodeExecutor, PublishFn } from "../types";
 import Handlebars from "handlebars";
-import { aiAgentChannel } from "@/inngest/channels/ai-agent";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
@@ -77,7 +75,7 @@ async function resolveCredential(credentialId: string | null | undefined): Promi
 function buildToolsFromNodes(
     toolNodes: Array<{ id: string; type: string; data: any }>,
     orgId?: bigint,
-    publish?: (msg: any) => Promise<void>,
+    publish?: PublishFn,
     usedToolNodeIds?: Set<string>,
 ) {
     const tools: Record<string, any> = {};
@@ -90,7 +88,7 @@ function buildToolsFromNodes(
         return (async (...args: any[]) => {
             usedToolNodeIds?.add(nodeId);
             if (publish) {
-                await publish(aiAgentChannel().status({ nodeId, status: "loading" }));
+                await publish(nodeId, "loading");
             }
             return executeFn(...args);
         }) as unknown as T;
@@ -133,13 +131,6 @@ function buildToolsFromNodes(
                 // @ts-expect-error — AI SDK v6 tool() typing
                 execute: wrapExecute(toolNode.id, async ({ to, subject, body }: { to: string; subject: string; body: string }) => {
                     try {
-                        console.log("[Send Email] Config:", {
-                            host: emailConfig.smtpHost,
-                            port: emailConfig.smtpPort,
-                            user: emailConfig.smtpUser,
-                            pass: emailConfig.smtpPass ? "***SET***" : "***MISSING***",
-                            fromAddress: emailConfig.fromAddress,
-                        });
                         const nodemailer = await import("nodemailer");
                         const transporter = nodemailer.createTransport({
                             host: emailConfig.smtpHost || "smtp.gmail.com",
@@ -176,7 +167,6 @@ function buildToolsFromNodes(
                 execute: wrapExecute(toolNode.id, async ({ url }: { url: string }) => {
                     try {
                         const response = await ky(url).text();
-                        // Strip HTML tags for cleaner text
                         const text = response.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
                         return text.slice(0, maxLength);
                     } catch (err: any) {
@@ -193,8 +183,6 @@ function buildToolsFromNodes(
                 // @ts-expect-error — AI SDK v6 tool() typing
                 execute: wrapExecute(toolNode.id, async ({ expression }: { expression: string }) => {
                     try {
-                        // Validate: only allow safe math characters and functions
-                        const safePattern = /^[0-9+\-*/%.() ,eE]+$|Math\.(sqrt|sin|cos|tan|log|abs|round|ceil|floor|pow|PI|E)/;
                         const cleaned = expression.replace(/Math\.\w+/g, "").replace(/PI|E/g, "");
                         if (!/^[0-9+\-*/%.() ,eE\s]*$/.test(cleaned)) {
                             return "Error: Expression contains unsafe characters. Only numbers, operators (+,-,*,/,%,**), and Math functions are allowed.";
@@ -220,7 +208,6 @@ function buildToolsFromNodes(
                 }),
             });
         } else if (toolNode.type === "INVENTORY_LOOKUP") {
-            // Auto-configured: queries the organization's own database
             tools["search_products"] = tool({
                 description: "Search or list products in the inventory. If no query is provided, lists all products. Can search by name or SKU.",
                 inputSchema: z.object({
@@ -230,7 +217,6 @@ function buildToolsFromNodes(
                 // @ts-expect-error — AI SDK v6 tool() typing
                 execute: wrapExecute(toolNode.id, async ({ query, limit }: { query?: string; limit?: number }) => {
                     try {
-                        console.log("[Inventory Tool] orgId:", orgId?.toString(), "query:", query);
                         const where: any = {};
                         if (orgId) where.org_id = orgId;
                         if (query && query.trim()) {
@@ -247,7 +233,6 @@ function buildToolsFromNodes(
                             },
                             take: Math.min(limit || 10, 20),
                         });
-                        console.log("[Inventory Tool] Found", products.length, "products");
                         if (products.length === 0) return "No products found in the inventory.";
                         return JSON.stringify(products.map(p => ({
                             id: p.product_id.toString(),
@@ -266,7 +251,6 @@ function buildToolsFromNodes(
                             })),
                         })), null, 2);
                     } catch (err: any) {
-                        console.error("[Inventory Tool] Error:", err);
                         return `Inventory Error: ${err.message}`;
                     }
                 }),
@@ -377,7 +361,6 @@ function buildToolsFromNodes(
                             where: { order_id: BigInt(orderId) },
                             data: { status: newStatus },
                         });
-                        // Fire order trigger workflows
                         if (order.org_id) {
                             emitOrderEvent(order.org_id.toString(), "update", "Order", {
                                 order_id: orderId,
@@ -420,7 +403,6 @@ function buildToolsFromNodes(
                 }),
             });
         } else {
-            // Generic fallback for unknown tool types
             tools[toolName] = tool({
                 description: `Execute the "${toolName}" node (type: ${toolNode.type})`,
                 inputSchema: z.object({
@@ -439,27 +421,21 @@ function buildToolsFromNodes(
 
 
 
-export const aiAgentExecutor: NodeExecutor<AiAgentData> = async ({ data, nodeId, context, step, publish }) => {
+export const aiAgentExecutor: NodeExecutor<AiAgentData> = async ({ data, nodeId, context, publish }) => {
 
-    await publish(
-        aiAgentChannel().status({
-            nodeId,
-            status: "loading",
-        }),
-    );
+    await publish(nodeId, "loading");
 
     if (!data.variableName) {
-        await publish(aiAgentChannel().status({ nodeId, status: "error" }));
-        throw new NonRetriableError("AI Agent: Variable name is required");
+        await publish(nodeId, "error");
+        throw new Error("AI Agent: Variable name is required");
     }
 
     if (!data.userPrompt) {
-        await publish(aiAgentChannel().status({ nodeId, status: "error" }));
-        throw new NonRetriableError("AI Agent: User prompt is required");
+        await publish(nodeId, "error");
+        throw new Error("AI Agent: User prompt is required");
     }
 
     // ----- 1. Find connected sub-nodes via DB connections -----
-    // Also resolve the org_id for security scoping (inventory/order tools)
     const agentNode = await prisma.node.findUnique({
         where: { id: nodeId },
         include: { workflow: { select: { org_id: true } } },
@@ -485,7 +461,6 @@ export const aiAgentExecutor: NodeExecutor<AiAgentData> = async ({ data, nodeId,
             if (chatModelNode) {
                 chatModelNodeId = chatModelNode.id;
                 chatModelData = chatModelNode.data as unknown as ChatModelData;
-                // Also get credentialId from the node record
                 if (chatModelNode.credentialId) {
                     chatModelData.credentialId = chatModelNode.credentialId;
                 }
@@ -505,13 +480,12 @@ export const aiAgentExecutor: NodeExecutor<AiAgentData> = async ({ data, nodeId,
 
     // ----- 2. Resolve Chat Model -----
     if (!chatModelData?.provider) {
-        await publish(aiAgentChannel().status({ nodeId, status: "error" }));
-        throw new NonRetriableError("AI Agent: No Chat Model connected. Connect a Chat Model sub-node to the bottom-left handle.");
+        await publish(nodeId, "error");
+        throw new Error("AI Agent: No Chat Model connected. Connect a Chat Model sub-node to the bottom-left handle.");
     }
 
-    // Show loading on chat model node while resolving
     if (chatModelNodeId) {
-        await publish(aiAgentChannel().status({ nodeId: chatModelNodeId, status: "loading" }));
+        await publish(chatModelNodeId, "loading");
     }
 
     let apiKey = "";
@@ -522,11 +496,11 @@ export const aiAgentExecutor: NodeExecutor<AiAgentData> = async ({ data, nodeId,
     }
 
     if (!apiKey) {
-        await publish(aiAgentChannel().status({ nodeId, status: "error" }));
+        await publish(nodeId, "error");
         if (chatModelNodeId) {
-            await publish(aiAgentChannel().status({ nodeId: chatModelNodeId, status: "error" }));
+            await publish(chatModelNodeId, "error");
         }
-        throw new NonRetriableError("AI Agent: Chat Model has no API key configured.");
+        throw new Error("AI Agent: Chat Model has no API key configured.");
     }
 
     const model = createModelInstance(
@@ -535,11 +509,9 @@ export const aiAgentExecutor: NodeExecutor<AiAgentData> = async ({ data, nodeId,
         apiKey,
     );
 
-
     // ----- 3. Resolve Memory -----
-    // Show loading on memory node while resolving
     if (memoryNodeId) {
-        await publish(aiAgentChannel().status({ nodeId: memoryNodeId, status: "loading" }));
+        await publish(memoryNodeId, "loading");
     }
     const memoryKey = memoryData?.memoryKey || "chatHistory";
     const windowSize = memoryData?.windowSize || 10;
@@ -559,7 +531,6 @@ export const aiAgentExecutor: NodeExecutor<AiAgentData> = async ({ data, nodeId,
         }));
     }
 
-    // Track which tool nodes the AI actually invokes
     const usedToolNodeIds = new Set<string>();
     const tools = buildToolsFromNodes(toolNodes, orgId, publish, usedToolNodeIds);
 
@@ -572,90 +543,62 @@ export const aiAgentExecutor: NodeExecutor<AiAgentData> = async ({ data, nodeId,
 
     // ----- 6. Run agentic loop -----
     try {
-        const result = await step.run("ai-agent-generate", async () => {
-            const messages: Array<{ role: "user" | "assistant"; content: string }> = [
-                ...recentHistory.map((m) => ({
-                    role: m.role as "user" | "assistant",
-                    content: m.content,
-                })),
-                { role: "user" as const, content: userPrompt },
-            ];
+        const messages: Array<{ role: "user" | "assistant"; content: string }> = [
+            ...recentHistory.map((m) => ({
+                role: m.role as "user" | "assistant",
+                content: m.content,
+            })),
+            { role: "user" as const, content: userPrompt },
+        ];
 
-            const { text, steps: agentSteps } = await generateText({
-                model,
-                system: systemPrompt,
-                messages,
-                tools: Object.keys(tools).length > 0 ? tools : undefined,
-                stopWhen: stepCountIs(data.maxIterations || 10),
-            });
-
-            // Update memory with the new exchange
-            const updatedHistory = [
-                ...existingHistory,
-                { role: "user", content: userPrompt },
-                { role: "assistant", content: text },
-            ].slice(-windowSize * 2); // Keep a reasonable history
-
-            return {
-                agentResponse: text,
-                toolCallCount: agentSteps.length - 1,
-                updatedHistory,
-                // Return used tool IDs so they survive Inngest re-invocation
-                usedToolIds: Array.from(usedToolNodeIds),
-            };
+        const { text, steps: agentSteps } = await generateText({
+            model,
+            system: systemPrompt,
+            messages,
+            tools: Object.keys(tools).length > 0 ? tools : undefined,
+            stopWhen: stepCountIs(data.maxIterations || 10),
         });
 
-        // Use the serialized list from step.run (survives Inngest replay)
-        const invokedToolIds = result.usedToolIds || [];
+        // Update memory with the new exchange
+        const updatedHistory = [
+            ...existingHistory,
+            { role: "user", content: userPrompt },
+            { role: "assistant", content: text },
+        ].slice(-windowSize * 2);
 
-        await publish(
-            aiAgentChannel().status({
-                nodeId,
-                status: "success",
-            }),
-        );
+        // Publish success for main node and sub-nodes
+        await publish(nodeId, "success");
 
-        // Publish success for sub-nodes
         if (chatModelNodeId) {
-            await publish(aiAgentChannel().status({ nodeId: chatModelNodeId, status: "success" }));
+            await publish(chatModelNodeId, "success");
         }
         if (memoryNodeId) {
-            await publish(aiAgentChannel().status({ nodeId: memoryNodeId, status: "success" }));
+            await publish(memoryNodeId, "success");
         }
-        for (const toolId of invokedToolIds) {
-            await publish(aiAgentChannel().status({ nodeId: toolId, status: "success" }));
+        for (const toolId of usedToolNodeIds) {
+            await publish(toolId, "success");
         }
 
         return {
             ...context,
             [data.variableName]: {
-                agentResponse: result.agentResponse,
-                toolCallCount: result.toolCallCount,
+                agentResponse: text,
+                toolCallCount: agentSteps.length - 1,
             },
-            // Update memory in context
-            ...(memoryData ? { [memoryKey]: result.updatedHistory } : {}),
+            ...(memoryData ? { [memoryKey]: updatedHistory } : {}),
         };
 
     } catch (error) {
-        await publish(
-            aiAgentChannel().status({
-                nodeId,
-                status: "error",
-            }),
-        );
+        await publish(nodeId, "error");
 
-        // Use the Set directly in catch (same invocation as step.run failure)
-        const invokedToolIds = Array.from(usedToolNodeIds);
-
-        // Publish error for sub-nodes
         if (chatModelNodeId) {
-            await publish(aiAgentChannel().status({ nodeId: chatModelNodeId, status: "error" }));
+            await publish(chatModelNodeId, "error");
         }
         if (memoryNodeId) {
-            await publish(aiAgentChannel().status({ nodeId: memoryNodeId, status: "error" }));
+            await publish(memoryNodeId, "error");
         }
-        for (const toolId of invokedToolIds) {
-            await publish(aiAgentChannel().status({ nodeId: toolId, status: "error" }));
+        for (const toolId of usedToolNodeIds) {
+            await publish(toolId, "error");
         }
 
         throw error;

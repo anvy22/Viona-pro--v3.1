@@ -1,55 +1,78 @@
-import type { Realtime } from "@inngest/realtime";
-import { useInngestSubscription } from "@inngest/realtime/hooks";
+"use client";
+
 import { useState, useEffect } from "react";
 import type { NodeStatus } from "@/components/react-flow/node-status-indicator";
+import { useWorkflowId } from "@/app/workflows/components/editor/workflow-context";
 
 interface UseNodeStatusOptions {
     nodeId: string;
-    channel: string;
-    topic: string;
-    refreshToken: () => Promise<Realtime.Subscribe.Token>;
 };
 
-export function useNodeStatus({
-    nodeId,
-    channel,
-    topic,
-    refreshToken,
-}: UseNodeStatusOptions){
-      const [status, setStatus] = useState<NodeStatus>("initial");
+// Global shared SSE connection per workflowId
+const sseConnections = new Map<string, {
+    listeners: Map<string, Set<(status: NodeStatus) => void>>;
+    eventSource: EventSource | null;
+}>();
 
-      const { data } = useInngestSubscription({
-        refreshToken,
-        enabled: true,
-      });
+function getOrCreateConnection(workflowId: string) {
+    if (!workflowId) return null;
 
-      useEffect(() => {
-          if (!data?.length) {
-             return;
-          }
+    let connection = sseConnections.get(workflowId);
+    if (connection) return connection;
 
-          const latestMessage = data
-          .filter((msg) => 
-               msg.kind === "data" &&
-               msg.channel === channel &&
-               msg.topic === topic &&
-               msg.data.nodeId === nodeId
-             
-        )
-        .sort((a, b) => {
-            if(a.kind === "data" && b.kind === "data") {
-                return(
-                    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-                )
+    connection = {
+        listeners: new Map(),
+        eventSource: null,
+    };
+
+    const es = new EventSource(`/api/workflow/status?workflowId=${workflowId}`);
+
+    es.onmessage = (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            if (data.nodeId && data.status) {
+                const nodeListeners = connection!.listeners.get(data.nodeId);
+                if (nodeListeners) {
+                    nodeListeners.forEach((cb) => cb(data.status as NodeStatus));
+                }
             }
-            return 0;
-        })[0];
-
-        if(latestMessage?.kind === "data"){
-            setStatus(latestMessage.data.status as NodeStatus);
+        } catch {
+            // Ignore parse errors (e.g., connection keepalive)
         }
+    };
 
-      }, [data, nodeId, channel, topic]);
+    es.onerror = () => {
+        // EventSource auto-reconnects
+    };
 
-      return status;
+    connection.eventSource = es;
+    sseConnections.set(workflowId, connection);
+
+    return connection;
+}
+
+export function useNodeStatus({ nodeId }: UseNodeStatusOptions) {
+    const workflowId = useWorkflowId();
+    const [status, setStatus] = useState<NodeStatus>("initial");
+
+    useEffect(() => {
+        if (!workflowId || !nodeId) return;
+
+        const connection = getOrCreateConnection(workflowId);
+        if (!connection) return;
+
+        if (!connection.listeners.has(nodeId)) {
+            connection.listeners.set(nodeId, new Set());
+        }
+        connection.listeners.get(nodeId)!.add(setStatus);
+
+        return () => {
+            connection.listeners.get(nodeId)?.delete(setStatus);
+            if (connection.listeners.get(nodeId)?.size === 0) {
+                connection.listeners.delete(nodeId);
+            }
+        };
+    }, [workflowId, nodeId]);
+
+    return status;
 }

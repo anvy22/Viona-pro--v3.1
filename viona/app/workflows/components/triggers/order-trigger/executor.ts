@@ -1,23 +1,21 @@
 import type { NodeExecutor } from "../../executions/types";
-import { orderTriggerChannel } from "@/inngest/channels/order-trigger";
 
-type OrderTriggerData = Record<string, unknown>;
+type OrderTriggerData = {
+    variableName?: string;
+};
 
-export const orderTriggerExecutor: NodeExecutor<OrderTriggerData> = async ({ nodeId, context, step, publish }) => {
-    await publish(
-        orderTriggerChannel().status({
-            nodeId,
-            status: "loading",
-        }),
-    );
-    const result = await step.run("order-trigger", async () => context);
+export const orderTriggerExecutor: NodeExecutor<OrderTriggerData> = async ({ data, nodeId, context, publish }) => {
+    await publish(nodeId, "loading");
 
-    await publish(
-        orderTriggerChannel().status({
-            nodeId,
-            status: "success",
-        }),
-    );
+    // The order event data is injected into context.order by workflow-events.ts
+    // We re-expose it under the user's chosen variableName (defaults to "order")
+    const variableName = data?.variableName || "order";
+    const orderData = (context.order ?? {}) as Record<string, unknown>;
 
-    return result;
+    await publish(nodeId, "success");
+
+    return {
+        ...context,
+        [variableName]: orderData,
+    };
 };

@@ -1,28 +1,25 @@
-import { inngest } from "./client";
+// Cron scheduler for scheduled workflows
+// Replaces inngest/scheduled-workflows.ts
+import cron from "node-cron";
 import { prisma } from "@/lib/prisma";
-import { scheduledTriggerChannel } from "./channels/scheduled-trigger";
 import { NodeType } from "@prisma/client";
+import { enqueueWorkflow } from "./queue";
 
+let started = false;
 
-export const scheduledWorkflowTick = inngest.createFunction(
-    {
-        id: "scheduled-workflow-tick",
-        retries: 0,
-    },
-    {
-        cron: "* * * * *", 
-        channels: [scheduledTriggerChannel()],
-    },
-    async ({ step }) => {
-        const matchingWorkflows = await step.run("find-scheduled-workflows", async () => {
+export function startCronScheduler() {
+    if (started) return;
+    started = true;
+
+    // Run every minute, same as the old Inngest cron
+    cron.schedule("* * * * *", async () => {
+        try {
             const nodes = await prisma.node.findMany({
                 where: { type: NodeType.SCHEDULED_TRIGGER },
                 include: { workflow: { select: { id: true, status: true } } },
             });
 
-           
             const now = new Date();
-            const results: Array<{ workflowId: string; nodeId: string; cronExpression: string }> = [];
 
             for (const node of nodes) {
                 if (node.workflow.status === "deleted") continue;
@@ -32,50 +29,38 @@ export const scheduledWorkflowTick = inngest.createFunction(
                 if (!cronExpr) continue;
 
                 if (cronMatchesNow(cronExpr, now)) {
-                    results.push({
+                    await enqueueWorkflow({
                         workflowId: node.workflow.id,
-                        nodeId: node.id,
-                        cronExpression: cronExpr,
-                    });
-                }
-            }
-
-            return results;
-        });
-
-        
-        for (const match of matchingWorkflows) {
-            await step.run(`trigger-${match.workflowId}`, async () => {
-                await inngest.send({
-                    name: "workflows/execute.workflow",
-                    data: {
-                        workflowId: match.workflowId,
                         initialData: {
                             schedule: {
                                 triggeredAt: new Date().toISOString(),
-                                cronExpression: match.cronExpression,
+                                cronExpression: cronExpr,
                             },
                         },
-                    },
-                });
-            });
+                    });
+                    console.log(`⏰ Triggered scheduled workflow ${node.workflow.id}`);
+                }
+            }
+        } catch (error) {
+            console.error("Cron scheduler error:", error);
         }
+    });
 
-        return { triggered: matchingWorkflows.length };
-    },
-);
+    console.log("⏰ Cron scheduler started (every minute)");
+}
 
+// ─── Cron matching helpers (same logic as before) ───
 
 function cronMatchesNow(expression: string, now: Date): boolean {
     const parts = expression.trim().split(/\s+/);
     if (parts.length < 5) return false;
 
     const fields = [
-        now.getMinutes(), 
-        now.getHours(),   
-        now.getDate(),  
-        now.getMonth() + 1, 
-        now.getDay(),       
+        now.getMinutes(),
+        now.getHours(),
+        now.getDate(),
+        now.getMonth() + 1,
+        now.getDay(),
     ];
 
     for (let i = 0; i < 5; i++) {
@@ -91,7 +76,6 @@ function fieldMatches(pattern: string, value: number): boolean {
 
 function singleFieldMatches(pattern: string, value: number): boolean {
     if (pattern === "*") return true;
-
 
     if (pattern.includes("/")) {
         const [rangePart, stepStr] = pattern.split("/");
@@ -110,14 +94,12 @@ function singleFieldMatches(pattern: string, value: number): boolean {
         return false;
     }
 
-
     if (pattern.includes("-")) {
         const [startStr, endStr] = pattern.split("-");
         const start = parseInt(startStr, 10);
         const end = parseInt(endStr, 10);
         return value >= start && value <= end;
     }
-
 
     return parseInt(pattern, 10) === value;
 }

@@ -1,23 +1,21 @@
 import type { NodeExecutor } from "../../executions/types";
-import { inventoryTriggerChannel } from "@/inngest/channels/inventory-trigger";
 
-type InventoryTriggerData = Record<string, unknown>;
+type InventoryTriggerData = {
+    variableName?: string;
+};
 
-export const inventoryTriggerExecutor: NodeExecutor<InventoryTriggerData> = async ({ nodeId, context, step, publish }) => {
-    await publish(
-        inventoryTriggerChannel().status({
-            nodeId,
-            status: "loading",
-        }),
-    );
-    const result = await step.run("inventory-trigger", async () => context);
+export const inventoryTriggerExecutor: NodeExecutor<InventoryTriggerData> = async ({ data, nodeId, context, publish }) => {
+    await publish(nodeId, "loading");
 
-    await publish(
-        inventoryTriggerChannel().status({
-            nodeId,
-            status: "success",
-        }),
-    );
+    // The inventory event data is injected into context.inventory by workflow-events.ts
+    // We re-expose it under the user's chosen variableName (defaults to "inventory")
+    const variableName = data?.variableName || "inventory";
+    const inventoryData = (context.inventory ?? {}) as Record<string, unknown>;
 
-    return result;
+    await publish(nodeId, "success");
+
+    return {
+        ...context,
+        [variableName]: inventoryData,
+    };
 };
