@@ -270,12 +270,19 @@ export default function ChatWindow({ chatId, onNewChat }: ChatWindowProps) {
             setIsConnected(false);
             if (pingInterval) clearInterval(pingInterval);
 
-            // Reconnect after 5 seconds if not intentionally closed
+            // Reconnect after 3 seconds, always using a FRESH token
             reconnectTimeoutRef.current = setTimeout(async () => {
-                if (selectedOrgIdRef.current && tokenRef.current) {
-                    await connectWebSocket(tokenRef.current, currentSessionIdRef.current || undefined);
+                if (!selectedOrgIdRef.current) return;
+                try {
+                    const freshToken = await getTokenRef.current();
+                    if (freshToken) {
+                        tokenRef.current = freshToken;
+                        await connectWebSocket(freshToken, currentSessionIdRef.current || undefined);
+                    }
+                } catch (err) {
+                    console.error("Token refresh failed on reconnect:", err);
                 }
-            }, 5000);
+            }, 3000);
         };
 
         wsRef.current = ws;

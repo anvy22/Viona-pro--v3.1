@@ -56,7 +56,8 @@ async def validate_clerk_token(token: str) -> dict:
             signing_key.key,
             algorithms=["RS256"],
             audience=None,  # Clerk doesn't use audience
-            options={"verify_aud": False}
+            options={"verify_aud": False},
+            leeway=30,  # 30s leeway for clock skew / Docker network delay
         )
         
         return claims
