@@ -94,8 +94,8 @@ export const ChatModelNode = memo((props: NodeProps<ChatModelNodeType>) => {
                 onSettings={handleOpenSettings}
                 onDelete={handleDelete}
             >
-                <NodeStatusIndicator status={nodeStatus} variant="border">
-                    <BaseNode status={nodeStatus} onDoubleClick={handleOpenSettings}>
+                <NodeStatusIndicator status={nodeStatus} variant="border" roundedClass="rounded-full">
+                    <BaseNode className="rounded-full" status={nodeStatus} onDoubleClick={handleOpenSettings}>
                         <BaseNodeContent>
                             <Image src={providerIcon} alt={providerName} width={16} height={16} />
                             <BaseHandle position={Position.Top} type="source" id="source-1" />

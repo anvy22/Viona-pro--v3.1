@@ -39,8 +39,8 @@ export const SendEmailNode = memo((props: NodeProps<SendEmailNodeType>) => {
         <>
             <SendEmailDialog open={open} onOpenChange={setOpen} onSubmit={handleSubmit} defaultValues={props.data} />
             <WorkflowNode name="Send Email" description={description} onSettings={() => setOpen(true)} onDelete={handleDelete}>
-                <NodeStatusIndicator status={nodeStatus} variant="border">
-                    <BaseNode status={nodeStatus} onDoubleClick={() => setOpen(true)}>
+                <NodeStatusIndicator status={nodeStatus} variant="border" roundedClass="rounded-full">
+                    <BaseNode className="rounded-full" status={nodeStatus} onDoubleClick={() => setOpen(true)}>
                         <BaseNodeContent>
                             <Mail className="size-4 text-muted-foreground" />
                             <BaseHandle position={Position.Top} type="source" id="source-1" />

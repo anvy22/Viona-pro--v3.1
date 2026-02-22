@@ -14,6 +14,9 @@ import { anthropicChannel } from "./channels/anthropic";
 import { discordChannel } from "./channels/discord";
 import { slackChannel } from "./channels/slack";
 import { aiAgentChannel } from "./channels/ai-agent";
+import { inventoryTriggerChannel } from "./channels/inventory-trigger";
+import { orderTriggerChannel } from "./channels/order-trigger";
+import { scheduledTriggerChannel } from "./channels/scheduled-trigger";
 
 export const executeWorkflow = inngest.createFunction(
     {
@@ -33,6 +36,9 @@ export const executeWorkflow = inngest.createFunction(
             discordChannel(),
             slackChannel(),
             aiAgentChannel(),
+            inventoryTriggerChannel(),
+            orderTriggerChannel(),
+            scheduledTriggerChannel(),
         ],
     },
     async ({ event, step, publish }) => {

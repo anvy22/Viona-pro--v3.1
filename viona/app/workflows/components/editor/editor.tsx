@@ -26,6 +26,7 @@ import { useSetAtom } from 'jotai';
 import { editorAtom } from './store/atom';
 import { NodeType } from '@prisma/client';
 import { ExecuteWorkflowButton } from "../execute-workflow-button";
+import { useTheme } from "next-themes";
 
 export const EditorLoading = () => {
     return (
@@ -55,10 +56,11 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
     const [error, setError] = useState(false);
 
     const setEditor = useSetAtom(editorAtom);
+    const { resolvedTheme } = useTheme();
 
-    const hasManualTrigger = useMemo(()=>{
-        return nodes.some((node)=>node.type === NodeType.MANUAL_TRIGGER);
-    },[nodes]);
+    const hasManualTrigger = useMemo(() => {
+        return nodes.some((node) => node.type === NodeType.MANUAL_TRIGGER);
+    }, [nodes]);
 
     // Clean up the atom when the editor unmounts
     useEffect(() => {
@@ -128,7 +130,10 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
             >
                 <Background />
                 <Controls />
-                <MiniMap />
+                <MiniMap
+                    nodeColor={resolvedTheme === 'dark' ? '#1c2720ff' : '#e4e4e7ff'}
+                    maskColor={resolvedTheme === 'dark' ? 'rgba(16, 44, 24, 1)' : 'rgba(244, 244, 245, 0.6)'}
+                />
                 <Panel position="top-right" >
                     <AddNodeButton />
                 </Panel>

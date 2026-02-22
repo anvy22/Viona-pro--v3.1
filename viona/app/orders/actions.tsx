@@ -7,6 +7,7 @@ import { currentUser } from '@clerk/nextjs/server';
 import { getUserRole, hasPermission, ensureOrganizationMember } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { sendNotification } from '@/lib/rabbitmq';
+import { emitOrderEvent } from '@/lib/workflow-events';
 
 // Cache user lookup to avoid repeated queries
 async function getOrCreateUser(userId: string) {
@@ -259,6 +260,15 @@ export async function addOrder(orgId: string, newOrder: any) {
         link: `/orders/${result.orderId}`,
       });
     }
+
+    // Fire order trigger workflows
+    emitOrderEvent(orgId, "create", "Order", {
+      order_id: result.orderId,
+      status: result.status,
+      customer_name: result.customerName,
+      customer_email: result.customerEmail,
+      total_amount: result.totalAmount,
+    }).catch(() => { });
 
     // Revalidate relevant pages
     revalidatePath('/orders');
@@ -574,6 +584,15 @@ export async function updateOrder(orgId: string, id: string, updatedOrder: any) 
       }
     }
 
+    // Fire order trigger workflows
+    emitOrderEvent(orgId, "update", "Order", {
+      order_id: result.orderId,
+      status: result.status,
+      customer_name: result.customerName,
+      customer_email: result.customerEmail,
+      total_amount: result.totalAmount,
+    }).catch(() => { });
+
     revalidatePath('/orders');
     revalidatePath('/dashboard');
     revalidatePath(`/orders/${orgId}`);
@@ -711,6 +730,13 @@ export async function deleteOrder(orgId: string, id: string) {
       }
     }
 
+    // Fire order trigger workflows
+    emitOrderEvent(orgId, "delete", "Order", {
+      order_id: id,
+      status: existingOrder.status,
+      customer_name: customerName,
+    }).catch(() => { });
+
     revalidatePath('/orders');
     revalidatePath('/dashboard');
     revalidatePath(`/orders/${orgId}`);
@@ -809,6 +835,11 @@ export async function bulkUpdateOrders(orgId: string, updates: { id: string; dat
       priority: 'MEDIUM',
       link: `/orders`,
     });
+
+    // Fire order trigger workflows for each updated order
+    for (const r of results) {
+      emitOrderEvent(orgId, "update", "Order", { order_id: r.orderId }).catch(() => { });
+    }
 
     revalidatePath('/orders');
     revalidatePath('/dashboard');

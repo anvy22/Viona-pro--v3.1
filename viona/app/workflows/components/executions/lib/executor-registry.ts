@@ -17,6 +17,9 @@ import { webScraperExecutor } from "../../executions/web-scraper/executor";
 import { calculatorExecutor } from "../../executions/calculator/executor";
 import { inventoryLookupExecutor } from "../../executions/inventory-lookup/executor";
 import { orderManagerExecutor } from "../../executions/order-manager/executor";
+import { inventoryTriggerExecutor } from "../../triggers/inventory-trigger/executor";
+import { orderTriggerExecutor } from "../../triggers/order-trigger/executor";
+import { scheduledTriggerExecutor } from "../../triggers/scheduled-trigger/executor";
 
 export const executorRegistry: Record<NodeType, NodeExecutor<any>> = {
     [NodeType.MANUAL_TRIGGER]: manualTriggerExecutor,
@@ -37,6 +40,9 @@ export const executorRegistry: Record<NodeType, NodeExecutor<any>> = {
     [NodeType.CALCULATOR]: calculatorExecutor,
     [NodeType.INVENTORY_LOOKUP]: inventoryLookupExecutor,
     [NodeType.ORDER_MANAGER]: orderManagerExecutor,
+    [NodeType.INVENTORY_TRIGGER]: inventoryTriggerExecutor,
+    [NodeType.ORDER_TRIGGER]: orderTriggerExecutor,
+    [NodeType.SCHEDULED_TRIGGER]: scheduledTriggerExecutor,
 };
 
 export const getExecutor = (type: NodeType): NodeExecutor => {

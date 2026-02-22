@@ -72,8 +72,8 @@ export const MemoryNode = memo((props: NodeProps<MemoryNodeType>) => {
                 onSettings={handleOpenSettings}
                 onDelete={handleDelete}
             >
-                <NodeStatusIndicator status={nodeStatus} variant="border">
-                    <BaseNode status={nodeStatus} onDoubleClick={handleOpenSettings}>
+                <NodeStatusIndicator status={nodeStatus} variant="border" roundedClass="rounded-full">
+                    <BaseNode className="rounded-full" status={nodeStatus} onDoubleClick={handleOpenSettings}>
                         <BaseNodeContent>
                             <BrainCircuit className="size-4 text-muted-foreground" />
                             <BaseHandle position={Position.Top} type="source" id="source-1" />
