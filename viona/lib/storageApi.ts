@@ -1,0 +1,127 @@
+const BASE_URL =
+  process.env.NEXT_PUBLIC_STORAGE_SERVER_URL || "http://localhost:5003";
+
+// Helper to get a Clerk session token from the browser
+async function getToken(): Promise<string> {
+  // Clerk exposes getToken via useAuth hook — but for a plain module,
+  // we read it from a shared store. See Step 3 for the hook approach.
+  throw new Error(
+    "Use the useStorageApi hook instead of calling this directly.",
+  );
+}
+
+// We export factory functions that accept a token string
+// so they can be called from components with the Clerk token.
+
+export async function apiFetch(
+  token: string,
+  path: string,
+  options: RequestInit = {},
+): Promise<Response> {
+  return fetch(`${BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      ...(options.headers || {}),
+    },
+  });
+}
+
+// --- Files ---
+
+export async function listFiles(token: string, parentId?: string | null) {
+  const query = parentId ? `?parentId=${parentId}` : "";
+  const res = await apiFetch(token, `/api/files${query}`);
+  if (!res.ok) throw new Error("Failed to fetch files");
+  return res.json(); // Array of File objects
+}
+
+export async function createFolder(
+  token: string,
+  name: string,
+  parentId?: string | null,
+) {
+  const res = await apiFetch(token, "/api/files/folder", {
+    method: "POST",
+    body: JSON.stringify({ name, parentId }),
+  });
+  if (!res.ok) throw new Error("Failed to create folder");
+  return res.json();
+}
+
+export async function renameItem(token: string, id: string, name: string) {
+  const res = await apiFetch(token, `/api/files/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) throw new Error("Failed to rename item");
+  return res.json();
+}
+
+export async function deleteItem(token: string, id: string) {
+  const res = await apiFetch(token, `/api/files/${id}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("Failed to delete item");
+}
+
+// --- Upload ---
+
+export async function uploadFile(
+  token: string,
+  file: File,
+  parentId?: string | null,
+) {
+  // Step 1: Get a pre-signed upload URL
+  const uploadRes = await apiFetch(token, "/api/storage/upload", {
+    method: "POST",
+    body: JSON.stringify({
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      parentId,
+    }),
+  });
+  if (!uploadRes.ok) throw new Error("Failed to initiate upload");
+  const { uploadUrl, fileId } = await uploadRes.json();
+
+  // Step 2: PUT the raw file to Azure Blob Storage via the signed URL
+  await fetch(uploadUrl, {
+    method: "PUT",
+    headers: {
+      "x-ms-blob-type": "BlockBlob",
+      "Content-Type": file.type,
+    },
+    body: file,
+  });
+
+  // Step 3: Tell the server the upload is complete
+  const finalizeRes = await apiFetch(token, "/api/storage/finalize", {
+    method: "POST",
+    body: JSON.stringify({ fileId }),
+  });
+  if (!finalizeRes.ok) throw new Error("Failed to finalize upload");
+  return finalizeRes.json();
+}
+
+// --- Download ---
+
+export async function getDownloadUrl(
+  token: string,
+  fileId: string,
+): Promise<string> {
+  const res = await apiFetch(token, `/api/storage/download/${fileId}`);
+  if (!res.ok) throw new Error("Failed to get download URL");
+  const { url } = await res.json();
+  return url;
+}
+
+// --- Trash ---
+
+export async function emptyTrash(token: string) {
+  const res = await apiFetch(token, "/api/trash", {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("Failed to empty trash");
+}
