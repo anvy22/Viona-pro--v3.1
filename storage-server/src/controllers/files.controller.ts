@@ -102,3 +102,22 @@ export async function remove(req: Request, res: Response) {
     res.status(500).json({ error: "Failed to delete file" });
   }
 }
+
+export async function usage(req: Request, res: Response) {
+  try {
+    const result = await prisma.file.aggregate({
+      where: { ownerId: req.user!.id, isTrashed: false, type: { not: "folder" } },
+      _sum: { size: true },
+    });
+
+    const usedBytes = Number(result._sum.size ?? 0);
+    const limitBytes = 500 * 1024 * 1024; // 500 MB
+    const percentage = Math.min((usedBytes / limitBytes) * 100, 100);
+
+    res.json({ usedBytes, limitBytes, percentage });
+  } catch (error) {
+    console.error("Error calculating usage:", error);
+    res.status(500).json({ error: "Failed to get usage" });
+  }
+}
+

@@ -160,4 +160,15 @@ export async function getViewUrl(
   return viewUrl;
 }
 
+export async function getUsage(token: string): Promise<{
+  usedBytes: number;
+  limitBytes: number;
+  percentage: number;
+}> {
+  const res = await apiFetch(token, "/api/files/usage");
+  if (!res.ok) throw new Error("Failed to get storage usage");
+  return res.json();
+}
+
+
 

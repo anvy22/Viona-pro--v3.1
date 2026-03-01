@@ -3,6 +3,7 @@ import { auth } from "../middleware/auth";
 import * as c from "../controllers/files.controller";
 
 const router = Router();
+router.get("/usage", auth, c.usage);
 router.get("/", auth, c.list);
 router.post("/folder", auth, c.createFolder);
 router.patch("/:id", auth, c.update);

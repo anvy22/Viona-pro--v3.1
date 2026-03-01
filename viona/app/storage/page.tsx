@@ -32,6 +32,9 @@ export default function Home() {
   const { getToken } = useAuth();
   const [loading, setLoading] = useState(false);
 
+  const [usagePercent, setUsagePercent] = useState(0);
+  const [usedBytes, setUsedBytes] = useState(0);
+
   // Navigation State
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [folderHistory, setFolderHistory] = useState<
@@ -134,6 +137,9 @@ export default function Home() {
         currentView === "trash",
       );
       setItems(data);
+      const usageData = await StorageApi.getUsage(token);
+      setUsagePercent(usageData.percentage);
+      setUsedBytes(usageData.usedBytes);
     } catch (err) {
       console.error("Failed to load files", err);
     } finally {
@@ -471,6 +477,8 @@ export default function Home() {
                 onDeleteForever={handleDeleteForever}
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
+                usagePercent={usagePercent}
+                usedBytes={usedBytes}
               />
 
               {viewMode === "grid" ? (
@@ -573,7 +581,9 @@ export default function Home() {
                 onClose={() =>
                   setModals((prev) => ({ ...prev, delete: false }))
                 }
-                onDelete={currentView === "trash" ? handleDeleteForever : handleDelete}
+                onDelete={
+                  currentView === "trash" ? handleDeleteForever : handleDelete
+                }
                 itemName={selectedFile?.name || ""}
               />
 
