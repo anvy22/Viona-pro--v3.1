@@ -12,6 +12,7 @@ import {
   List as ListIcon,
   Info,
   Edit2,
+  ClipboardPaste,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -37,6 +38,8 @@ interface ToolbarProps {
   onSearchChange?: (query: string) => void;
   usagePercent?: number;
   usedBytes?: number;
+  clipboardItemName?: string | null;
+  onPaste?: () => void;
 }
 
 export default function Toolbar({
@@ -60,6 +63,8 @@ export default function Toolbar({
   onSearchChange,
   usagePercent = 0,
   usedBytes = 0,
+  clipboardItemName,
+  onPaste,
 }: ToolbarProps) {
   return (
     <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 bg-card rounded-xl border border-border gap-4 shadow-sm">
@@ -138,6 +143,17 @@ export default function Toolbar({
               <Trash2 className="w-4 h-4 text-muted-foreground" />
               <span>Trash</span>
             </button>
+            {clipboardItemName && (
+              <button
+                onClick={onPaste}
+                className="flex items-center justify-center gap-2 px-3 md:px-4 py-2 flex-1 md:flex-initial min-w-[120px] md:min-w-[140px] bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border rounded-lg text-sm font-medium transition-colors"
+              >
+                <ClipboardPaste className="w-4 h-4 text-muted-foreground" />
+                <span className="whitespace-nowrap truncate max-w-[120px]">
+                  Paste "{clipboardItemName}"
+                </span>
+              </button>
+            )}
           </>
         )}
         <div className="hidden lg:block w-px h-8 bg-border mx-2" />
@@ -146,10 +162,15 @@ export default function Toolbar({
           <div className="flex flex-col gap-1 min-w-[140px]">
             <div className="flex items-center justify-between text-xs">
               <span className="font-medium text-muted-foreground">Storage</span>
-              <span className="text-primary">{usagePercent.toFixed(1)}% used</span>
+              <span className="text-primary">
+                {usagePercent.toFixed(1)}% used
+              </span>
             </div>
             <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden border border-border">
-              <div className="h-full bg-primary rounded-full" style={{ width: `${usagePercent}%` }} />
+              <div
+                className="h-full bg-primary rounded-full"
+                style={{ width: `${usagePercent}%` }}
+              />
             </div>
           </div>
         </div>

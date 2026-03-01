@@ -45,6 +45,12 @@ export default function Home() {
   const [items, setItems] = useState<FileItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Clipboard state for copy/cut/paste
+  const [clipboard, setClipboard] = useState<{
+    item: FileItem;
+    operation: "copy" | "cut";
+  } | null>(null);
+
   // Modal State
   const [modals, setModals] = useState({
     newFolder: false,
@@ -90,7 +96,7 @@ export default function Home() {
     setSelectedFile(file === selectedFile ? null : file);
   };
 
-    const handleOpen = async (item: FileItem) => {
+  const handleOpen = async (item: FileItem) => {
     if (item.type === "folder") {
       handleFolderClick(item);
     } else {
@@ -104,7 +110,6 @@ export default function Home() {
       }
     }
   };
-
 
   const handleFolderClick = (folder: FileItem) => {
     setCurrentFolderId(folder.id);
@@ -362,6 +367,15 @@ export default function Home() {
       case "restore":
         handleRestore();
         break;
+      case "copy":
+        handleCopy(item);
+        break;
+      case "cut":
+        handleCut(item);
+        break;
+      case "paste":
+        handlePaste();
+        break;
     }
     setContextMenu(null);
   };
@@ -371,6 +385,45 @@ export default function Home() {
     setFolderHistory([{ id: "trash", name: "Trash" }]);
     setSelectedFile(null);
     setSearchQuery(""); // Clear search when switching to trash
+  };
+
+  const handleCopy = (item?: FileItem) => {
+    const target = item || selectedFile;
+    if (!target) return;
+    setClipboard({ item: target, operation: "copy" });
+  };
+
+  const handleCut = (item?: FileItem) => {
+    const target = item || selectedFile;
+    if (!target) return;
+    setClipboard({ item: target, operation: "cut" });
+  };
+
+  const handlePaste = async () => {
+    if (!clipboard) return;
+    try {
+      const token = await getToken();
+      if (!token) return;
+
+      if (clipboard.operation === "cut") {
+        // Move: update parentId to current folder
+        // await StorageApi.renameItem(
+        //   token,
+        //   clipboard.item.id,
+        //   clipboard.item.name,
+        // );
+        // Actually we need moveItem — see storageApi section below
+        await StorageApi.moveItem(token, clipboard.item.id, currentFolderId);
+        setClipboard(null); // Clear clipboard after cut-paste
+      } else {
+        // Copy: call copyItem API — see storageApi section below
+        await StorageApi.copyItem(token, clipboard.item.id, currentFolderId);
+        // Clipboard stays for multiple pastes
+      }
+      await loadFiles();
+    } catch (err) {
+      console.error("Paste failed", err);
+    }
   };
 
   return (
@@ -495,6 +548,8 @@ export default function Home() {
                 onSearchChange={setSearchQuery}
                 usagePercent={usagePercent}
                 usedBytes={usedBytes}
+                clipboardItemName={clipboard?.item.name ?? null}
+                onPaste={handlePaste}
               />
 
               {viewMode === "grid" ? (
@@ -623,6 +678,8 @@ export default function Home() {
                   onClose={() => setContextMenu(null)}
                   onAction={handleContextMenuAction}
                   isTrashed={contextMenu.item.isTrashed}
+                  clipboardItem={clipboard?.item}
+                  clipboardOp={clipboard?.operation}
                 />
               )}
             </div>

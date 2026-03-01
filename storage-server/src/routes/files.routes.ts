@@ -8,5 +8,6 @@ router.get("/", auth, c.list);
 router.post("/folder", auth, c.createFolder);
 router.patch("/:id", auth, c.update);
 router.delete("/:id", auth, c.remove);
+router.post("/:id/copy", auth, c.copy);
 
 export default router;

@@ -170,5 +170,33 @@ export async function getUsage(token: string): Promise<{
   return res.json();
 }
 
+export async function moveItem(
+  token: string,
+  id: string,
+  newParentId: string | null,
+) {
+  const res = await apiFetch(token, `/api/files/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ parentId: newParentId }),
+  });
+  if (!res.ok) throw new Error("Failed to move item");
+  return res.json();
+}
+
+export async function copyItem(
+  token: string,
+  id: string,
+  newParentId: string | null,
+) {
+  const res = await apiFetch(token, `/api/files/${id}/copy`, {
+    method: "POST",
+    body: JSON.stringify({ parentId: newParentId }),
+  });
+  if (!res.ok) throw new Error("Failed to copy item");
+  return res.json();
+}
+
+
+
 
 

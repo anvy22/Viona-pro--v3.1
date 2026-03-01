@@ -5,15 +5,15 @@ import { blobServiceClient, CONTAINER_NAME } from "../services/azure.service";
 
 export async function list(req: Request, res: Response) {
   try {
+    const isTrashed = req.query.trashed === "true";
     const parentId = (req.query.parentId as string) || null;
     const files = await prisma.file.findMany({
       where: {
         ownerId: req.user!.id,
-        parentId,
-        isTrashed: req.query.trashed === "true",
+        ...(isTrashed ? {} : { parentId }),
+        isTrashed,
       },
     });
-
     res.json(files);
   } catch (error) {
     console.error("Error listing files:", error);
@@ -106,7 +106,11 @@ export async function remove(req: Request, res: Response) {
 export async function usage(req: Request, res: Response) {
   try {
     const result = await prisma.file.aggregate({
-      where: { ownerId: req.user!.id, isTrashed: false, type: { not: "folder" } },
+      where: {
+        ownerId: req.user!.id,
+        isTrashed: false,
+        type: { not: "folder" },
+      },
       _sum: { size: true },
     });
 
@@ -121,3 +125,51 @@ export async function usage(req: Request, res: Response) {
   }
 }
 
+export async function copy(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    const { parentId } = req.body;
+
+    const original = await prisma.file.findFirst({
+      where: { id, ownerId: req.user!.id },
+    });
+    if (!original) return res.status(404).json({ error: "File not found" });
+
+    if (original.type === "folder") {
+      // Only copy the folder record (not recursive contents, for simplicity)
+      const newFolder = await prisma.file.create({
+        data: {
+          name: `${original.name} (copy)`,
+          type: "folder",
+          parentId: parentId ?? null,
+          ownerId: req.user!.id,
+        },
+      });
+      return res.json(newFolder);
+    }
+
+    // For files: copy the Azure blob
+    const containerClient =
+      blobServiceClient.getContainerClient(CONTAINER_NAME);
+    const newKey = `${req.user!.id}/${Date.now()}-${original.name}`;
+    const sourceBlob = containerClient.getBlockBlobClient(original.gcsKey!);
+    const destBlob = containerClient.getBlockBlobClient(newKey);
+    await destBlob.beginCopyFromURL(sourceBlob.url); // Azure server-side copy
+
+    const newFile = await prisma.file.create({
+      data: {
+        name: `${original.name} (copy)`,
+        type: original.type,
+        size: original.size,
+        mimeType: original.mimeType,
+        gcsKey: newKey,
+        parentId: parentId ?? null,
+        ownerId: req.user!.id,
+      },
+    });
+    res.json(newFile);
+  } catch (error) {
+    console.error("Error copying file:", error);
+    res.status(500).json({ error: "Failed to copy file" });
+  }
+}
