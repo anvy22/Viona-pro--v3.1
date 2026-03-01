@@ -1,11 +1,14 @@
+// Topological sort utility (extracted from inngest/utils.ts, no inngest dependency)
 import { Connection, Node, NodeType } from "@prisma/client";
 import toposort from "toposort";
-import { inngest } from "./client";
 
 const TRIGGER_TYPES: string[] = [
     NodeType.MANUAL_TRIGGER,
     NodeType.GOOGLE_FORM_TRIGGER,
     NodeType.STRIPE_TRIGGER,
+    NodeType.INVENTORY_TRIGGER,
+    NodeType.ORDER_TRIGGER,
+    NodeType.SCHEDULED_TRIGGER,
     NodeType.INITIAL,
 ];
 
@@ -28,7 +31,7 @@ export const topologicalSort = (nodes: Node[], connections: Connection[]) => {
     // Find trigger nodes
     const triggerNodes = nodes.filter((n) => TRIGGER_TYPES.includes(n.type));
 
-    // BFS/DFS to find all nodes reachable from triggers via connections
+    // BFS to find all nodes reachable from triggers via connections
     const reachable = new Set<string>();
     const queue = triggerNodes.map((n) => n.id);
     while (queue.length > 0) {
@@ -46,7 +49,6 @@ export const topologicalSort = (nodes: Node[], connections: Connection[]) => {
     // Only include reachable nodes
     const reachableNodes = nodes.filter((n) => reachable.has(n.id));
 
-    // If no connections among reachable nodes, return them as-is (trigger only)
     const reachableEdges: [string, string][] = mainConnections
         .filter((c) => reachable.has(c.fromNodeId) && reachable.has(c.toNodeId))
         .map((c) => [c.fromNodeId, c.toNodeId]);
@@ -55,7 +57,6 @@ export const topologicalSort = (nodes: Node[], connections: Connection[]) => {
         return reachableNodes;
     }
 
-    // Perform topological sort on reachable edges
     let sortedNodeIds: string[];
     try {
         sortedNodeIds = toposort(reachableEdges);
@@ -67,19 +68,6 @@ export const topologicalSort = (nodes: Node[], connections: Connection[]) => {
         throw error;
     }
 
-    // Map sorted IDs back to node objects
     const nodeMap = new Map(reachableNodes.map((n) => [n.id, n]));
     return sortedNodeIds.map((id) => nodeMap.get(id)!).filter(Boolean);
-
-};
-
-export const sendWorkflowExecution = async (data: {
-    workflowId: string;
-    [key: string]: any;
-}) => {
-
-    inngest.send({
-        name: "workflows/execute.workflow",
-        data,
-    });
 };

@@ -4,8 +4,6 @@ import { BaseExecutionNode } from "@/app/workflows/components/executions/base-ex
 import { memo, useState } from "react";
 import { AnthropicDialog, type AnthropicFormValues } from "./dialog";
 import { useNodeStatus } from "@/app/workflows/components/executions/hooks/use-node-status";
-import { ANTHROPIC_CHANNEL_NAME } from "@/inngest/channels/anthropic";
-import { fetchAnthropicRealtimeToken } from "@/app/workflows/components/executions/anthropic/actions";
 import { AVAILABLE_MODELS } from "./dialog";
 import { attachCredentialToNode } from "@/app/credentials/credentials-actions";
 
@@ -23,12 +21,7 @@ export const AnthropicNode = memo((props: NodeProps<AnthropicNodeType>) => {
     const [open, setOpen] = useState(false);
     const { setNodes } = useReactFlow();
 
-    const nodeStatus = useNodeStatus({
-        nodeId: props.id,
-        channel: ANTHROPIC_CHANNEL_NAME,
-        topic: "status",
-        refreshToken: fetchAnthropicRealtimeToken,
-    });
+    const nodeStatus = useNodeStatus({ nodeId: props.id });
 
     const handleOpenSettings = () => setOpen(true);
 

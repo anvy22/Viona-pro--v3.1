@@ -89,6 +89,9 @@ services:
       REDIS_URL: redis://redis:6379
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+
+      # ✅ Encryption key for credential decryption
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
     depends_on:
       rabbitmq:
         condition: service_healthy

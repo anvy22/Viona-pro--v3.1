@@ -26,6 +26,8 @@ import { useSetAtom } from 'jotai';
 import { editorAtom } from './store/atom';
 import { NodeType } from '@prisma/client';
 import { ExecuteWorkflowButton } from "../execute-workflow-button";
+import { useTheme } from "next-themes";
+import { WorkflowIdProvider } from "./workflow-context";
 
 export const EditorLoading = () => {
     return (
@@ -55,10 +57,11 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
     const [error, setError] = useState(false);
 
     const setEditor = useSetAtom(editorAtom);
+    const { resolvedTheme } = useTheme();
 
-    const hasManualTrigger = useMemo(()=>{
-        return nodes.some((node)=>node.type === NodeType.MANUAL_TRIGGER);
-    },[nodes]);
+    const hasManualTrigger = useMemo(() => {
+        return nodes.some((node) => node.type === NodeType.MANUAL_TRIGGER);
+    }, [nodes]);
 
     // Clean up the atom when the editor unmounts
     useEffect(() => {
@@ -112,32 +115,37 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
     }
 
     return (
-        <div className='size-full'>
-            <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                onConnect={onConnect}
-                fitView
-                proOptions={{
-                    hideAttribution: true,
-                }}
-                nodeTypes={nodeComponents}
-                onInit={setEditor}
-            >
-                <Background />
-                <Controls />
-                <MiniMap />
-                <Panel position="top-right" >
-                    <AddNodeButton />
-                </Panel>
-                {hasManualTrigger && (
-                    <Panel position="bottom-center">
-                        <ExecuteWorkflowButton workflowId={workflowId} />
+        <WorkflowIdProvider value={workflowId}>
+            <div className='size-full'>
+                <ReactFlow
+                    nodes={nodes}
+                    edges={edges}
+                    onNodesChange={onNodesChange}
+                    onEdgesChange={onEdgesChange}
+                    onConnect={onConnect}
+                    fitView
+                    proOptions={{
+                        hideAttribution: true,
+                    }}
+                    nodeTypes={nodeComponents}
+                    onInit={setEditor}
+                >
+                    <Background />
+                    <Controls />
+                    <MiniMap
+                        nodeColor={resolvedTheme === 'dark' ? '#1c2720ff' : '#e4e4e7ff'}
+                        maskColor={resolvedTheme === 'dark' ? 'rgba(16, 44, 24, 1)' : 'rgba(244, 244, 245, 0.6)'}
+                    />
+                    <Panel position="top-right" >
+                        <AddNodeButton />
                     </Panel>
-                )}
-            </ReactFlow>
-        </div>
+                    {hasManualTrigger && (
+                        <Panel position="bottom-center">
+                            <ExecuteWorkflowButton workflowId={workflowId} />
+                        </Panel>
+                    )}
+                </ReactFlow>
+            </div>
+        </WorkflowIdProvider>
     );
 };

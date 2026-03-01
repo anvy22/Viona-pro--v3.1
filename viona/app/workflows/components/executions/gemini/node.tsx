@@ -4,8 +4,6 @@ import { BaseExecutionNode } from "@/app/workflows/components/executions/base-ex
 import { memo, useState } from "react";
 import { GeminiDialog, type GeminiFormValues } from "./dialog";
 import { useNodeStatus } from "@/app/workflows/components/executions/hooks/use-node-status";
-import { GEMINI_CHANNEL_NAME } from "@/inngest/channels/gemini";
-import { fetchGeminiRealtimeToken } from "@/app/workflows/components/executions/gemini/actions";
 import { AVAILABLE_MODELS } from "./dialog";
 import { attachCredentialToNode } from "@/app/credentials/credentials-actions";
 
@@ -23,12 +21,7 @@ export const GeminiNode = memo((props: NodeProps<GeminiNodeType>) => {
     const [open, setOpen] = useState(false);
     const { setNodes } = useReactFlow();
 
-    const nodeStatus = useNodeStatus({
-        nodeId: props.id,
-        channel: GEMINI_CHANNEL_NAME,
-        topic: "status",
-        refreshToken: fetchGeminiRealtimeToken,
-    });
+    const nodeStatus = useNodeStatus({ nodeId: props.id });
 
     const handleOpenSettings = () => setOpen(true);
 

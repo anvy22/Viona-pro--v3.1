@@ -18,6 +18,9 @@ import { WebScraperNode } from "@/app/workflows/components/executions/web-scrape
 import { CalculatorNode } from "@/app/workflows/components/executions/calculator/node";
 import { InventoryLookupNode } from "@/app/workflows/components/executions/inventory-lookup/node";
 import { OrderManagerNode } from "@/app/workflows/components/executions/order-manager/node";
+import { InventoryTriggerNode } from "@/app/workflows/components/triggers/inventory-trigger/node";
+import { OrderTriggerNode } from "@/app/workflows/components/triggers/order-trigger/node";
+import { ScheduledTriggerNode } from "@/app/workflows/components/triggers/scheduled-trigger/node";
 
 export const nodeComponents = {
     [NodeType.INITIAL]: InitialNode,
@@ -38,6 +41,9 @@ export const nodeComponents = {
     [NodeType.CALCULATOR]: CalculatorNode,
     [NodeType.INVENTORY_LOOKUP]: InventoryLookupNode,
     [NodeType.ORDER_MANAGER]: OrderManagerNode,
+    [NodeType.INVENTORY_TRIGGER]: InventoryTriggerNode,
+    [NodeType.ORDER_TRIGGER]: OrderTriggerNode,
+    [NodeType.SCHEDULED_TRIGGER]: ScheduledTriggerNode,
 } as const satisfies NodeTypes;
 
 export type RegisteredNodeTypes = keyof typeof nodeComponents;

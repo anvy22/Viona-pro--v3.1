@@ -7,6 +7,7 @@ import { getUserRole, hasPermission, ensureOrganizationMember } from "@/lib/auth
 import { revalidatePath, revalidateTag, unstable_cache } from "next/cache";
 import { CacheService } from "@/lib/cache";
 import { sendNotification } from "@/lib/rabbitmq";
+import { emitInventoryEvent } from "@/lib/workflow-events";
 import type { Product } from "../api/inventory/products/route";
 
 function toBigInt(id: string) {
@@ -347,6 +348,9 @@ export async function addProduct(
 
     await invalidateInventory(orgId, product.product_id.toString());
 
+    // Fire inventory trigger workflows
+    emitInventoryEvent(orgId, "create", "Product", product).catch(() => { });
+
     console.log(`✅ Product created: ${product.product_id} (${product.name})`);
 
     return {
@@ -478,6 +482,9 @@ export async function updateProduct(
 
     await invalidateInventory(orgId, productId);
 
+    // Fire inventory trigger workflows
+    emitInventoryEvent(orgId, "update", "Product", product).catch(() => { });
+
     console.log(`✅ Product updated: ${productId} (${product.name})`);
 
     return {
@@ -569,6 +576,9 @@ export async function deleteProduct(orgId: string, productId: string) {
     );
 
     await invalidateInventory(orgId, productId);
+
+    // Fire inventory trigger workflows
+    emitInventoryEvent(orgId, "delete", "Product", { product_id: productId, name: productName }).catch(() => { });
 
     console.log(`✅ Product deleted: ${productId} (${productName})`);
 
@@ -692,6 +702,11 @@ export async function bulkUpdateProducts(
     );
 
     console.log(`bulkUpdateProducts: Successfully updated ${results.length} products`);
+
+    // Fire inventory trigger workflows for each updated product
+    for (const r of results) {
+      emitInventoryEvent(orgId, "update", "Product", { product_id: r.productId, name: r.name, sku: r.sku }).catch(() => { });
+    }
 
     await sendNotification({
       userId: user.clerk_id,
@@ -852,6 +867,9 @@ export async function updateProductDetails(
 
     await invalidateInventory(orgId, productId);
 
+    // Fire inventory trigger workflows
+    emitInventoryEvent(orgId, "update", "Product", { product_id: productId, ...data }).catch(() => { });
+
     return { success: true };
   } catch (error) {
     console.error("Error updating product details:", error);
@@ -948,6 +966,9 @@ export async function deleteProductDetails(orgId: string, productId: string) {
     console.log(`Successfully deleted product ${productId} (${product.name})`);
 
     await invalidateInventory(orgId, productId);
+
+    // Fire inventory trigger workflows
+    emitInventoryEvent(orgId, "delete", "Product", { product_id: productId, name: product.name }).catch(() => { });
 
     return {
       success: true,
@@ -1076,6 +1097,9 @@ export async function updateProductStock(
 
     await invalidateInventory(orgId, productId);
 
+    // Fire inventory trigger workflows
+    emitInventoryEvent(orgId, "update", "ProductStock", { product_id: productId, name: product?.name, sku: product?.sku, quantity: newQuantity }).catch(() => { });
+
     return { success: true };
   } catch (error) {
     console.error("Error updating product stock:", error);
@@ -1144,6 +1168,9 @@ export async function transferStock(
     });
 
     await invalidateInventory(orgId, productId);
+
+    // Fire inventory trigger workflows
+    emitInventoryEvent(orgId, "update", "ProductStock", { product_id: productId, action: "transfer" }).catch(() => { });
 
     return { success: true };
   } catch (error) {
@@ -1242,6 +1269,9 @@ export async function deactivateProduct(
 
     await invalidateInventory(orgId, productId);
 
+    // Fire inventory trigger workflows
+    emitInventoryEvent(orgId, "update", "Product", { product_id: productId, name: product.name, status: "discontinued" }).catch(() => { });
+
     return {
       success: true,
       productId: productId.toString(),
@@ -1287,6 +1317,9 @@ export async function activateProduct(orgId: string, productId: string) {
     });
 
     await invalidateInventory(orgId, productId);
+
+    // Fire inventory trigger workflows
+    emitInventoryEvent(orgId, "update", "Product", { product_id: productId, name: product.name, status: product.status }).catch(() => { });
 
     return {
       success: true,
@@ -1338,6 +1371,9 @@ export async function updateProductStatus(
     });
 
     await invalidateInventory(orgId, productId);
+
+    // Fire inventory trigger workflows
+    emitInventoryEvent(orgId, "update", "Product", { product_id: productId, name: product.name, status: product.status }).catch(() => { });
 
     return {
       success: true,
