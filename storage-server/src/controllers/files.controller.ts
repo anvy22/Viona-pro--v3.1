@@ -79,6 +79,30 @@ export async function update(req: Request, res: Response) {
   }
 }
 
+// Helper: recursively delete all children of a folder
+async function deleteRecursive(folderId: string, ownerId: string) {
+  // Find all direct children
+  const children = await prisma.file.findMany({
+    where: { parentId: folderId, ownerId },
+  });
+
+  for (const child of children) {
+    if (child.type === "folder") {
+      // Recurse into sub-folders
+      await deleteRecursive(child.id, ownerId);
+    } else {
+      // Delete Azure blob for files
+      if (child.gcsKey) {
+        const containerClient =
+          blobServiceClient.getContainerClient(CONTAINER_NAME);
+        await containerClient.getBlockBlobClient(child.gcsKey).deleteIfExists();
+      }
+    }
+    // Delete the child record from DB
+    await prisma.file.delete({ where: { id: child.id } });
+  }
+}
+
 export async function remove(req: Request, res: Response) {
   try {
     const file = await prisma.file.findFirst({
@@ -89,12 +113,19 @@ export async function remove(req: Request, res: Response) {
       return res.status(404).json({ error: "File not found" });
     }
 
-    if (file.gcsKey) {
-      const containerClient =
-        blobServiceClient.getContainerClient(CONTAINER_NAME);
-      await containerClient.getBlockBlobClient(file.gcsKey).deleteIfExists();
+    if (file.type === "folder") {
+      // Recursively delete everything inside before deleting folder itself
+      await deleteRecursive(file.id, req.user!.id);
+    } else {
+      // Delete the Azure blob for single files
+      if (file.gcsKey) {
+        const containerClient =
+          blobServiceClient.getContainerClient(CONTAINER_NAME);
+        await containerClient.getBlockBlobClient(file.gcsKey).deleteIfExists();
+      }
     }
 
+    // Delete the folder/file itself
     await prisma.file.delete({ where: { id: file.id } });
     res.sendStatus(204);
   } catch (error) {
