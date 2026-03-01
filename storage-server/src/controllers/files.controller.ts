@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { prisma } from "../utils/prisma";
 import type { FileUpdateData, AuthenticatedRequest } from "../types/interfaces";
+import { blobServiceClient, CONTAINER_NAME } from "../services/azure.service";
 
 export async function list(req: Request, res: Response) {
   try {
@@ -32,7 +33,7 @@ export async function createFolder(req: Request, res: Response) {
       data: {
         name,
         type: "folder",
-        parentId: parentId || null,  // ensure empty string becomes null
+        parentId: parentId || null, // ensure empty string becomes null
         ownerId: req.user!.id,
       },
     });
@@ -86,6 +87,12 @@ export async function remove(req: Request, res: Response) {
 
     if (!file) {
       return res.status(404).json({ error: "File not found" });
+    }
+
+    if (file.gcsKey) {
+      const containerClient =
+        blobServiceClient.getContainerClient(CONTAINER_NAME);
+      await containerClient.getBlockBlobClient(file.gcsKey).deleteIfExists();
     }
 
     await prisma.file.delete({ where: { id: file.id } });

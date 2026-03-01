@@ -13,7 +13,9 @@ function getSharedKeyCredential(): StorageSharedKeyCredential {
   const accountNameMatch = connStr.match(/AccountName=([^;]+)/);
   const accountKeyMatch = connStr.match(/AccountKey=([^;]+)/);
   if (!accountNameMatch || !accountKeyMatch) {
-    throw new Error("Cannot parse AccountName/AccountKey from AZURE_STORAGE_CONNECTION_STRING");
+    throw new Error(
+      "Cannot parse AccountName/AccountKey from AZURE_STORAGE_CONNECTION_STRING",
+    );
   }
   const accountName: string = accountNameMatch[1]!;
   const accountKey: string = accountKeyMatch[1]!;
@@ -23,7 +25,8 @@ function getSharedKeyCredential(): StorageSharedKeyCredential {
 function generateSasUrl(
   blobName: string,
   permissions: string,
-  expiresInSeconds: number
+  expiresInSeconds: number,
+  contentDisposition?: string,
 ): string {
   const credential = getSharedKeyCredential();
   const connStr = process.env.AZURE_STORAGE_CONNECTION_STRING!;
@@ -40,8 +43,9 @@ function generateSasUrl(
       blobName,
       permissions: sasPermissions,
       expiresOn,
+      ...(contentDisposition ? { contentDisposition } : {}),
     },
-    credential
+    credential,
   ).toString();
 
   return `https://${accountName}.blob.core.windows.net/${CONTAINER_NAME}/${blobName}?${sasQueryParams}`;
@@ -49,7 +53,8 @@ function generateSasUrl(
 
 export async function upload(req: Request, res: Response) {
   try {
-    const { name, type, size, mimeType, parentId } = req.body as UploadRequestBody;
+    const { name, type, size, mimeType, parentId } =
+      req.body as UploadRequestBody;
 
     if (!name || !type) {
       return res.status(400).json({ error: "Name and type are required" });
@@ -114,3 +119,20 @@ export async function download(req: Request, res: Response) {
     res.status(500).json({ error: "Failed to create download URL" });
   }
 }
+
+export async function view(req: Request, res: Response) {
+  try {
+    const file = await prisma.file.findFirst({
+      where: { id: req.params.id, ownerId: req.user!.id },
+    });
+    if (!file) return res.status(404).json({ error: "File not found" });
+    if (!file.gcsKey) return res.status(400).json({ error: "File has no storage key" });
+
+    const viewUrl = generateSasUrl(file.gcsKey, "r", 600, "inline");
+    res.json({ viewUrl });
+  } catch (error) {
+    console.error("Error creating view URL:", error);
+    res.status(500).json({ error: "Failed to create view URL" });
+  }
+}
+

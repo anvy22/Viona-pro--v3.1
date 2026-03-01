@@ -6,17 +6,18 @@ interface DetailsDialogProps {
     isOpen: boolean;
     onClose: () => void;
     file: FileItem | null;
+    onCopyLink?: () => void;
 }
 
-export default function DetailsDialog({ isOpen, onClose, file }: DetailsDialogProps) {
+export default function DetailsDialog({ isOpen, onClose, file, onCopyLink }: DetailsDialogProps) {
     if (!isOpen || !file) return null;
 
     const Icon = getIconForType(file.type);
 
-    const handleCopyLink = () => {
-        navigator.clipboard.writeText(`https://drive.example.com/file/${file.id}`);
-        // In a real app, you'd show a toast here
-    };
+    // const handleCopyLink = () => {
+    //     navigator.clipboard.writeText(`https://drive.example.com/file/${file.id}`);
+    //     // In a real app, you'd show a toast here
+    // };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
@@ -81,7 +82,7 @@ export default function DetailsDialog({ isOpen, onClose, file }: DetailsDialogPr
                     </div>
 
                     <button
-                        onClick={handleCopyLink}
+                        onClick={onCopyLink}
                         className="w-full py-2.5 flex items-center justify-center gap-2 border border-card-border rounded-lg text-sm font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-all active:scale-[0.98]"
                     >
                         <Copy className="w-4 h-4" />

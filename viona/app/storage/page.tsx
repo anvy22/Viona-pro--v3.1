@@ -24,8 +24,6 @@ import { FileItem } from "./types";
 import { cn } from "@/lib/utils";
 import { ArrowLeft } from "lucide-react";
 
-
-
 export default function Home() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [currentView, setCurrentView] = useState<"drive" | "trash">("drive");
@@ -36,9 +34,9 @@ export default function Home() {
 
   // Navigation State
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
-  const [folderHistory, setFolderHistory] = useState<{ id: string | null, name: string }[]>([
-    { id: null, name: "My Drive" }
-  ]);
+  const [folderHistory, setFolderHistory] = useState<
+    { id: string | null; name: string }[]
+  >([{ id: null, name: "My Drive" }]);
 
   // Data State
   const [items, setItems] = useState<FileItem[]>([]);
@@ -49,23 +47,41 @@ export default function Home() {
     newFolder: false,
     rename: false,
     delete: false,
-    details: false
+    details: false,
   });
 
+  const [contextMenuViewUrl, setContextMenuViewUrl] = useState<string | null>(
+    null,
+  );
+
   // Context Menu State
-  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, item: FileItem } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    item: FileItem;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const currentItems = currentView === 'trash'
-    ? items.filter(item => item.isTrashed && (searchQuery ? item.name.toLowerCase().includes(searchQuery.toLowerCase()) : true))
-    : items.filter(item => {
-      if (searchQuery) {
-        return !item.isTrashed && item.name.toLowerCase().includes(searchQuery.toLowerCase());
-      }
-      return item.parentId === currentFolderId && !item.isTrashed;
-    });
-  const currentFolders = currentItems.filter(item => item.type === "folder");
-  const currentFiles = currentItems.filter(item => item.type !== "folder");
+  const currentItems =
+    currentView === "trash"
+      ? items.filter(
+          (item) =>
+            item.isTrashed &&
+            (searchQuery
+              ? item.name.toLowerCase().includes(searchQuery.toLowerCase())
+              : true),
+        )
+      : items.filter((item) => {
+          if (searchQuery) {
+            return (
+              !item.isTrashed &&
+              item.name.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+          }
+          return item.parentId === currentFolderId && !item.isTrashed;
+        });
+  const currentFolders = currentItems.filter((item) => item.type === "folder");
+  const currentFiles = currentItems.filter((item) => item.type !== "folder");
 
   const handleSelect = (file: FileItem) => {
     setSelectedFile(file === selectedFile ? null : file);
@@ -74,7 +90,7 @@ export default function Home() {
   const handleFolderClick = (folder: FileItem) => {
     setCurrentFolderId(folder.id);
     setSearchQuery(""); // Clear search when navigating
-    setFolderHistory(prev => [...prev, { id: folder.id, name: folder.name }]);
+    setFolderHistory((prev) => [...prev, { id: folder.id, name: folder.name }]);
     setSelectedFile(null);
   };
 
@@ -92,8 +108,8 @@ export default function Home() {
       return;
     }
 
-    if (currentView === 'trash') {
-      setCurrentView('drive');
+    if (currentView === "trash") {
+      setCurrentView("drive");
       setFolderHistory([{ id: null, name: "My Drive" }]);
       setCurrentFolderId(null);
       return;
@@ -112,7 +128,11 @@ export default function Home() {
       setLoading(true);
       const token = await getToken();
       if (!token) return;
-      const data = await StorageApi.listFiles(token, currentFolderId);
+      const data = await StorageApi.listFiles(
+        token,
+        currentView === "trash" ? null : currentFolderId,
+        currentView === "trash",
+      );
       setItems(data);
     } catch (err) {
       console.error("Failed to load files", err);
@@ -124,7 +144,6 @@ export default function Home() {
   useEffect(() => {
     loadFiles();
   }, [currentFolderId, currentView]); // Re-fetch when folder or view changes
-
 
   const handleCreateFolder = async (name: string) => {
     try {
@@ -155,25 +174,32 @@ export default function Home() {
     try {
       const token = await getToken();
       if (!token) return;
-      await StorageApi.deleteItem(token, selectedFile.id);
+      await StorageApi.trashItem(token, selectedFile.id);
       setSelectedFile(null);
-      setModals(prev => ({ ...prev, delete: false }));
+      setModals((prev) => ({ ...prev, delete: false }));
       await loadFiles();
     } catch (err) {
       console.error("Failed to delete", err);
     }
   };
 
-  const handleRestore = () => {
+  const handleRestore = async () => {
     if (!selectedFile) return;
-    setItems(prev => prev.map(item =>
-      item.id === selectedFile.id ? { ...item, isTrashed: false } : item
-    ));
+    const token = await getToken();
+    if (!token) return;
+    await StorageApi.restoreItem(token, selectedFile.id);
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === selectedFile.id ? { ...item, isTrashed: false } : item,
+      ),
+    );
     setSelectedFile(null);
   };
 
   const handleEmptyTrash = async () => {
-    if (confirm("Are you sure you want to permanently delete all items in Trash?")) {
+    if (
+      confirm("Are you sure you want to permanently delete all items in Trash?")
+    ) {
       try {
         const token = await getToken();
         if (!token) return;
@@ -185,20 +211,43 @@ export default function Home() {
     }
   };
 
+  const handleDeleteForever = async () => {
+    if (!selectedFile) return;
+    try {
+      const token = await getToken();
+      if (!token) return;
+      await StorageApi.deleteItem(token, selectedFile.id);
+      setSelectedFile(null);
+      setModals((prev) => ({ ...prev, delete: false }));
+      await loadFiles();
+    } catch (err) {
+      console.error("Failed to permanently delete", err);
+    }
+  };
+
   const handleRestoreAll = () => {
     if (confirm("Restore all items from Trash?")) {
-      setItems(prev => prev.map(item => ({ ...item, isTrashed: false })));
+      setItems((prev) => prev.map((item) => ({ ...item, isTrashed: false })));
     }
   };
 
   const handleCopyLink = () => {
     if (!selectedFile) return;
-    navigator.clipboard.writeText(`https://drive.example.com/file/${selectedFile.id}`);
+    navigator.clipboard.writeText(
+      `https://drive.example.com/file/${selectedFile.id}`,
+    );
     console.log("Link copied to clipboard");
   };
 
-  const handleContextCopyLink = (item: FileItem) => {
-    navigator.clipboard.writeText(`https://drive.example.com/file/${item.id}`);
+  const handleContextCopyLink = async (item: FileItem) => {
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const url = await StorageApi.getViewUrl(token, item.id);
+      navigator.clipboard.writeText(url);
+    } catch (err) {
+      console.error("Get link failed", err);
+    }
   };
 
   const handleUploadClick = () => {
@@ -216,7 +265,7 @@ export default function Home() {
     } catch (err) {
       console.error("Upload failed", err);
     } finally {
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -224,6 +273,19 @@ export default function Home() {
     e.preventDefault();
     setSelectedFile(item);
     setContextMenu({ x: e.clientX, y: e.clientY, item });
+    setContextMenuViewUrl(null);
+    if (item.type !== "folder") {
+      (async () => {
+        try {
+          const token = await getToken();
+          if (!token) return;
+          const url = await StorageApi.getViewUrl(token, item.id);
+          setContextMenuViewUrl(url);
+        } catch (err) {
+          console.error("Failed to pre-fetch view URL", err);
+        }
+      })();
+    }
   };
 
   const handleContextMenuAction = (action: string) => {
@@ -231,38 +293,51 @@ export default function Home() {
     const { item } = contextMenu;
 
     switch (action) {
-      case 'open':
-        if (item.type === 'folder') handleFolderClick(item);
+      case "open":
+        if (item.type === "folder") {
+          handleFolderClick(item);
+        } else if (contextMenuViewUrl) {
+          window.open(contextMenuViewUrl, "_blank");
+        }
         break;
-      case 'rename':
-        setModals(prev => ({ ...prev, rename: true }));
+      case "rename":
+        setModals((prev) => ({ ...prev, rename: true }));
         break;
-      case 'share':
+      case "share":
         console.log("Share action triggered for", item.name);
         break;
-      case 'link':
+      case "link":
         handleContextCopyLink(item);
         break;
-      case 'download':
+      case "download":
         (async () => {
           try {
             const token = await getToken();
             if (!token) return;
             const url = await StorageApi.getDownloadUrl(token, item.id);
-            window.open(url, "_blank");
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = blobUrl;
+            a.download = item.name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(blobUrl);
           } catch (err) {
             console.error("Download failed", err);
           }
         })();
         break;
-      case 'delete':
-        setModals(prev => ({ ...prev, delete: true }));
+      case "delete":
+        setModals((prev) => ({ ...prev, delete: true }));
         break;
-      case 'info':
-      case 'details':
-        setModals(prev => ({ ...prev, details: true }));
+      case "info":
+      case "details":
+        setModals((prev) => ({ ...prev, details: true }));
         break;
-      case 'restore':
+      case "restore":
         handleRestore();
         break;
     }
@@ -270,8 +345,8 @@ export default function Home() {
   };
 
   const handleTrashClick = () => {
-    setCurrentView('trash');
-    setFolderHistory([{ id: 'trash', name: 'Trash' }]);
+    setCurrentView("trash");
+    setFolderHistory([{ id: "trash", name: "Trash" }]);
     setSelectedFile(null);
     setSearchQuery(""); // Clear search when switching to trash
   };
@@ -297,7 +372,9 @@ export default function Home() {
           <div className="flex-1 overflow-y-auto">
             <div className="p-4 md:p-6">
               {loading && (
-                <div className="text-center text-gray-400 py-10">Loading...</div>
+                <div className="text-center text-gray-400 py-10">
+                  Loading...
+                </div>
               )}
 
               {/* ... inputs/nav ... */}
@@ -312,15 +389,21 @@ export default function Home() {
                 <nav className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                   <button
                     onClick={handleBack}
-                    disabled={folderHistory.length <= 1 && currentView !== 'trash' && !searchQuery}
+                    disabled={
+                      folderHistory.length <= 1 &&
+                      currentView !== "trash" &&
+                      !searchQuery
+                    }
                     className={cn(
                       "p-1 rounded-full transition-colors",
                       // Background colors fixed for light/dark
                       "hover:bg-gray-200 dark:hover:bg-white/5",
-                      (folderHistory.length <= 1 && currentView !== 'trash' && !searchQuery)
+                      folderHistory.length <= 1 &&
+                        currentView !== "trash" &&
+                        !searchQuery
                         ? "opacity-30 cursor-not-allowed"
-                        // Text colors fixed for light/dark
-                        : "text-gray-600 dark:text-gray-200"
+                        : // Text colors fixed for light/dark
+                          "text-gray-600 dark:text-gray-200",
                     )}
                     title="Go Back"
                   >
@@ -337,9 +420,9 @@ export default function Home() {
                         // Hover text color fixed
                         "hover:text-gray-900 dark:hover:text-white",
                         index === folderHistory.length - 1
-                          // Active text color fixed
-                          ? "text-gray-900 dark:text-white font-medium"
-                          : ""
+                          ? // Active text color fixed
+                            "text-gray-900 dark:text-white font-medium"
+                          : "",
                       )}
                     >
                       {item.name} {index < folderHistory.length - 1 && " / "}
@@ -350,9 +433,13 @@ export default function Home() {
                 <div className="flex items-center justify-between">
                   {/* H1 color fixed */}
                   <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {searchQuery ? `Search results for "${searchQuery}"` : folderHistory[folderHistory.length - 1].name}
+                    {searchQuery
+                      ? `Search results for "${searchQuery}"`
+                      : folderHistory[folderHistory.length - 1].name}
                   </h1>
-                  <span className="text-sm text-gray-500">{currentItems.length} items</span>
+                  <span className="text-sm text-gray-500">
+                    {currentItems.length} items
+                  </span>
                 </div>
                 <br />
               </div>
@@ -360,12 +447,20 @@ export default function Home() {
               <Toolbar
                 viewMode={viewMode}
                 onViewChange={setViewMode}
-                onNewFolder={() => setModals(prev => ({ ...prev, newFolder: true }))}
+                onNewFolder={() =>
+                  setModals((prev) => ({ ...prev, newFolder: true }))
+                }
                 onUpload={handleUploadClick}
-                onToggleDetails={() => setModals(prev => ({ ...prev, details: true }))}
+                onToggleDetails={() =>
+                  setModals((prev) => ({ ...prev, details: true }))
+                }
                 isDetailsOpen={false}
-                onRename={() => setModals(prev => ({ ...prev, rename: true }))}
-                onDelete={() => setModals(prev => ({ ...prev, delete: true }))}
+                onRename={() =>
+                  setModals((prev) => ({ ...prev, rename: true }))
+                }
+                onDelete={() =>
+                  setModals((prev) => ({ ...prev, delete: true }))
+                }
                 onCopyLink={handleCopyLink}
                 onTrashClick={handleTrashClick}
                 hasSelection={!!selectedFile}
@@ -373,115 +468,135 @@ export default function Home() {
                 onEmptyTrash={handleEmptyTrash}
                 onRestore={handleRestore}
                 onRestoreAll={handleRestoreAll}
-                onDeleteForever={handleDelete}
+                onDeleteForever={handleDeleteForever}
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
               />
 
-              {
-                viewMode === "grid" ? (
-                  <div className="flex-1 overflow-y-auto min-h-0 space-y-8 pb-10" onContextMenu={(e) => { e.preventDefault(); }}>
-                    {currentFolders.length > 0 && (
-                      <section>
-                        {/* Section Header Fixed */}
-                        <br />
-                        <h2 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-4 flex items-center gap-2">
-                          Folders
-                          <span className="bg-gray-100 dark:bg-white/5 text-xs px-2 py-0.5 rounded-full text-gray-600 dark:text-gray-500">{currentFolders.length}</span>
-                        </h2>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                          {currentFolders.map((folder) => (
-                            <FolderCard
-                              key={folder.id}
-                              folder={folder}
-                              selected={selectedFile?.id === folder.id}
-                              onClick={() => handleSelect(folder)}
-                              onDoubleClick={() => handleFolderClick(folder)}
-                              onContextMenu={(e) => handleContextMenu(e, folder)}
-                            />
-                          ))}
-                        </div>
-                      </section>
-                    )}
-
-                    {currentFiles.length > 0 && (
-                      <section>
-                        {/* Section Header Fixed */}
-                        <h2 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-4 flex items-center gap-2">
-                          Files
-                          <span className="bg-gray-100 dark:bg-white/5 text-xs px-2 py-0.5 rounded-full text-gray-600 dark:text-gray-500">{currentFiles.length}</span>
-                        </h2>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                          {currentFiles.map((file) => (
-                            <FileCard
-                              key={file.id}
-                              file={file}
-                              selected={selectedFile?.id === file.id}
-                              onClick={() => handleSelect(file)}
-                              onContextMenu={(e) => handleContextMenu(e, file)}
-                            />
-                          ))}
-                        </div>
-                      </section>
-                    )}
-
-                    {currentItems.length === 0 && (
-                      <div className="flex-1 flex items-center justify-center text-gray-500 flex-col gap-2 mt-20">
-                        <div className="text-lg font-medium">This folder is empty</div>
-                        <div className="text-sm">Use the "New Folder" button to create one</div>
+              {viewMode === "grid" ? (
+                <div
+                  className="flex-1 overflow-y-auto min-h-0 space-y-8 pb-10"
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                  }}
+                >
+                  {currentFolders.length > 0 && (
+                    <section>
+                      {/* Section Header Fixed */}
+                      <br />
+                      <h2 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-4 flex items-center gap-2">
+                        Folders
+                        <span className="bg-gray-100 dark:bg-white/5 text-xs px-2 py-0.5 rounded-full text-gray-600 dark:text-gray-500">
+                          {currentFolders.length}
+                        </span>
+                      </h2>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {currentFolders.map((folder) => (
+                          <FolderCard
+                            key={folder.id}
+                            folder={folder}
+                            selected={selectedFile?.id === folder.id}
+                            onClick={() => handleSelect(folder)}
+                            onDoubleClick={() => handleFolderClick(folder)}
+                            onContextMenu={(e) => handleContextMenu(e, folder)}
+                          />
+                        ))}
                       </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex-1 overflow-y-auto min-h-0 pb-10 bg-card rounded-xl border border-border">
-                    <FileList
-                      items={currentItems}
-                      selectedId={selectedFile?.id}
-                      onSelect={handleSelect}
-                      onContextMenu={handleContextMenu}
-                    />
-                  </div>
-                )
-              }
+                    </section>
+                  )}
+
+                  {currentFiles.length > 0 && (
+                    <section>
+                      {/* Section Header Fixed */}
+                      <h2 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-4 flex items-center gap-2">
+                        Files
+                        <span className="bg-gray-100 dark:bg-white/5 text-xs px-2 py-0.5 rounded-full text-gray-600 dark:text-gray-500">
+                          {currentFiles.length}
+                        </span>
+                      </h2>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {currentFiles.map((file) => (
+                          <FileCard
+                            key={file.id}
+                            file={file}
+                            selected={selectedFile?.id === file.id}
+                            onClick={() => handleSelect(file)}
+                            onContextMenu={(e) => handleContextMenu(e, file)}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {currentItems.length === 0 && (
+                    <div className="flex-1 flex items-center justify-center text-gray-500 flex-col gap-2 mt-20">
+                      <div className="text-lg font-medium">
+                        This folder is empty
+                      </div>
+                      <div className="text-sm">
+                        Use the "New Folder" button to create one
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex-1 overflow-y-auto min-h-0 pb-10 bg-card rounded-xl border border-border">
+                  <FileList
+                    items={currentItems}
+                    selectedId={selectedFile?.id}
+                    onSelect={handleSelect}
+                    onContextMenu={handleContextMenu}
+                  />
+                </div>
+              )}
 
               {/* Modals and Overlays */}
               <NewFolderDialog
                 isOpen={modals.newFolder}
-                onClose={() => setModals(prev => ({ ...prev, newFolder: false }))}
+                onClose={() =>
+                  setModals((prev) => ({ ...prev, newFolder: false }))
+                }
                 onCreate={handleCreateFolder}
               />
 
               <RenameDialog
                 isOpen={modals.rename}
-                onClose={() => setModals(prev => ({ ...prev, rename: false }))}
+                onClose={() =>
+                  setModals((prev) => ({ ...prev, rename: false }))
+                }
                 onRename={handleRename}
                 currentName={selectedFile?.name || ""}
               />
 
               <DeleteDialog
                 isOpen={modals.delete}
-                onClose={() => setModals(prev => ({ ...prev, delete: false }))}
-                onDelete={handleDelete}
+                onClose={() =>
+                  setModals((prev) => ({ ...prev, delete: false }))
+                }
+                onDelete={currentView === "trash" ? handleDeleteForever : handleDelete}
                 itemName={selectedFile?.name || ""}
               />
 
               <DetailsDialog
                 isOpen={modals.details}
-                onClose={() => setModals(prev => ({ ...prev, details: false }))}
+                onClose={() =>
+                  setModals((prev) => ({ ...prev, details: false }))
+                }
                 file={selectedFile}
+                onCopyLink={() =>
+                  selectedFile && handleContextCopyLink(selectedFile)
+                }
               />
 
-              {
-                contextMenu && (
-                  <ContextMenu
-                    x={contextMenu.x}
-                    y={contextMenu.y}
-                    onClose={() => setContextMenu(null)}
-                    onAction={handleContextMenuAction}
-                    isTrashed={contextMenu.item.isTrashed}
-                  />
-                )
-              }
+              {contextMenu && (
+                <ContextMenu
+                  x={contextMenu.x}
+                  y={contextMenu.y}
+                  onClose={() => setContextMenu(null)}
+                  onAction={handleContextMenuAction}
+                  isTrashed={contextMenu.item.isTrashed}
+                />
+              )}
             </div>
           </div>
         </div>

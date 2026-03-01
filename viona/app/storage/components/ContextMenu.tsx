@@ -57,16 +57,16 @@ export default function ContextMenu({ x, y, onClose, onAction, isTrashed }: Cont
         >
             {!isTrashed && (
                 <>
-                    <button onClick={() => onAction('preview')} className={menuItemClass}>
+                    <button onClick={() => onAction('open')} className={menuItemClass}>
                         <FolderInput className="w-4 h-4" /> Open
                     </button>
                     <div className={dividerClass} />
                     <button onClick={() => onAction('rename')} className={menuItemClass}>
                         <Edit2 className="w-4 h-4" /> Rename
                     </button>
-                    <button onClick={() => onAction('share')} className={menuItemClass}>
+                    {/* <button onClick={() => onAction('share')} className={menuItemClass}>
                         <Share2 className="w-4 h-4" /> Share
-                    </button>
+                    </button> */}
                     <button onClick={() => onAction('link')} className={menuItemClass}>
                         <LinkIcon className="w-4 h-4" /> Get Link
                     </button>

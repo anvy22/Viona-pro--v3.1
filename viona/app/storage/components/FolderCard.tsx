@@ -36,7 +36,8 @@ export default function FolderCard({ folder, selected, onClick, onDoubleClick, o
                 </button>
             </div>
             <div>
-                <p className="text-xs text-gray-500">{folder.size} • {folder.updatedAt ? new Date(folder.updatedAt).toLocaleDateString() : ''}</p>
+                <p className="text-sm font-medium text-foreground truncate mb-1">{folder.name}</p>
+                <p className="text-xs text-gray-500">{folder.updatedAt ? new Date(folder.updatedAt).toLocaleDateString() : ''}</p>
             </div>
         </div>
     );

@@ -30,8 +30,15 @@ export async function apiFetch(
 
 // --- Files ---
 
-export async function listFiles(token: string, parentId?: string | null) {
-  const query = parentId ? `?parentId=${parentId}` : "";
+export async function listFiles(
+  token: string,
+  parentId?: string | null,
+  trashed = false,
+) {
+  const params = new URLSearchParams();
+  if (parentId) params.set("parentId", parentId);
+  if (trashed) params.set("trashed", "true");
+  const query = params.toString() ? `?${params.toString()}` : "";
   const res = await apiFetch(token, `/api/files${query}`);
   if (!res.ok) throw new Error("Failed to fetch files");
   return res.json(); // Array of File objects
@@ -59,6 +66,15 @@ export async function renameItem(token: string, id: string, name: string) {
   return res.json();
 }
 
+export async function trashItem(token: string, id: string) {
+  const res = await apiFetch(token, `/api/files/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ isTrashed: true }),
+  });
+  if (!res.ok) throw new Error("Failed to trash item");
+  return res.json();
+}
+
 export async function deleteItem(token: string, id: string) {
   const res = await apiFetch(token, `/api/files/${id}`, {
     method: "DELETE",
@@ -78,7 +94,7 @@ export async function uploadFile(
     method: "POST",
     body: JSON.stringify({
       name: file.name,
-      type: file.type,
+      type: file.type || "application/octet-stream",
       size: file.size,
       parentId,
     }),
@@ -113,7 +129,7 @@ export async function getDownloadUrl(
 ): Promise<string> {
   const res = await apiFetch(token, `/api/storage/download/${fileId}`);
   if (!res.ok) throw new Error("Failed to get download URL");
-  const { url } = await res.json();
+  const { downloadUrl: url } = await res.json();
   return url;
 }
 
@@ -125,3 +141,23 @@ export async function emptyTrash(token: string) {
   });
   if (!res.ok) throw new Error("Failed to empty trash");
 }
+export async function restoreItem(token: string, id: string) {
+  const res = await apiFetch(token, `/api/files/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ isTrashed: false }),
+  });
+  if (!res.ok) throw new Error("Failed to restore item");
+  return res.json();
+}
+
+export async function getViewUrl(
+  token: string,
+  fileId: string,
+): Promise<string> {
+  const res = await apiFetch(token, `/api/storage/view/${fileId}`);
+  if (!res.ok) throw new Error("Failed to get view URL");
+  const { viewUrl } = await res.json();
+  return viewUrl;
+}
+
+
