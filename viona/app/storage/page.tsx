@@ -57,6 +57,8 @@ export default function Home() {
     rename: false,
     delete: false,
     details: false,
+    emptyTrash: false,
+    restoreAll: false,
   });
 
   const [contextMenuViewUrl, setContextMenuViewUrl] = useState<string | null>(
@@ -224,17 +226,14 @@ export default function Home() {
   };
 
   const handleEmptyTrash = async () => {
-    if (
-      confirm("Are you sure you want to permanently delete all items in Trash?")
-    ) {
-      try {
-        const token = await getToken();
-        if (!token) return;
-        await StorageApi.emptyTrash(token);
-        await loadFiles();
-      } catch (err) {
-        console.error("Failed to empty trash", err);
-      }
+    try {
+      const token = await getToken();
+      if (!token) return;
+      await StorageApi.emptyTrash(token);
+      setModals((prev) => ({ ...prev, emptyTrash: false }));
+      await loadFiles();
+    } catch (err) {
+      console.error("Failed to empty trash", err);
     }
   };
 
@@ -252,9 +251,18 @@ export default function Home() {
     }
   };
 
-  const handleRestoreAll = () => {
-    if (confirm("Restore all items from Trash?")) {
-      setItems((prev) => prev.map((item) => ({ ...item, isTrashed: false })));
+  const handleRestoreAll = async () => {
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const trashedItems = items.filter((item) => item.isTrashed);
+      await Promise.all(
+        trashedItems.map((item) => StorageApi.restoreItem(token, item.id)),
+      );
+      setModals((prev) => ({ ...prev, restoreAll: false }));
+      await loadFiles();
+    } catch (err) {
+      console.error("Failed to restore all", err);
     }
   };
 
@@ -444,10 +452,10 @@ export default function Home() {
 
           <Separator />
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto relative">
             <div className="p-4 md:p-6">
               {loading && (
-                <div className="text-center text-gray-400 py-10">
+                <div className="fixed top-[70px] left-0 right-0 flex justify-center text-gray-400 text-sm pointer-events-none z-50">
                   Loading...
                 </div>
               )}
@@ -540,9 +548,13 @@ export default function Home() {
                 onTrashClick={handleTrashClick}
                 hasSelection={!!selectedFile}
                 pageView={currentView}
-                onEmptyTrash={handleEmptyTrash}
+                onEmptyTrash={() =>
+                  setModals((prev) => ({ ...prev, emptyTrash: true }))
+                }
                 onRestore={handleRestore}
-                onRestoreAll={handleRestoreAll}
+                onRestoreAll={() =>
+                  setModals((prev) => ({ ...prev, restoreAll: true }))
+                }
                 onDeleteForever={handleDeleteForever}
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
@@ -658,6 +670,31 @@ export default function Home() {
                   currentView === "trash" ? handleDeleteForever : handleDelete
                 }
                 itemName={selectedFile?.name || ""}
+              />
+              <DeleteDialog
+                isOpen={modals.emptyTrash}
+                onClose={() =>
+                  setModals((prev) => ({ ...prev, emptyTrash: false }))
+                }
+                onDelete={handleEmptyTrash}
+                itemName=""
+                title="Empty Trash?"
+                description="This will permanently delete all items in Trash. This cannot be undone."
+                confirmLabel="Empty Trash"
+                confirmClass="bg-red-500 hover:bg-red-600"
+              />
+
+              <DeleteDialog
+                isOpen={modals.restoreAll}
+                onClose={() =>
+                  setModals((prev) => ({ ...prev, restoreAll: false }))
+                }
+                onDelete={handleRestoreAll}
+                itemName=""
+                title="Restore All Items?"
+                description="This will restore all trashed items back to My Drive."
+                confirmLabel="Restore All"
+                confirmClass="bg-emerald-500 hover:bg-emerald-600"
               />
 
               <DetailsDialog
