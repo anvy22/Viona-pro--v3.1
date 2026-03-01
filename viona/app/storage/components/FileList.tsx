@@ -6,6 +6,7 @@ interface FileListProps {
   items: FileItem[];
   selectedId?: string | null;
   onSelect?: (item: FileItem) => void;
+  onDoubleClick?: (item: FileItem) => void;
   onContextMenu?: (e: React.MouseEvent, item: FileItem) => void;
 }
 
@@ -13,6 +14,7 @@ export default function FileList({
   items,
   selectedId,
   onSelect,
+  onDoubleClick,
   onContextMenu,
 }: FileListProps) {
   return (
@@ -35,6 +37,7 @@ export default function FileList({
             <div
               key={item.id}
               onClick={() => onSelect?.(item)}
+              onDoubleClick={() => onDoubleClick?.(item)}
               onContextMenu={(e) => onContextMenu?.(e, item)}
               className={cn(
                 // Base styles

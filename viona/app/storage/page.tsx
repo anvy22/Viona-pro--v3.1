@@ -90,6 +90,22 @@ export default function Home() {
     setSelectedFile(file === selectedFile ? null : file);
   };
 
+    const handleOpen = async (item: FileItem) => {
+    if (item.type === "folder") {
+      handleFolderClick(item);
+    } else {
+      try {
+        const token = await getToken();
+        if (!token) return;
+        const url = await StorageApi.getViewUrl(token, item.id);
+        window.open(url, "_blank");
+      } catch (err) {
+        console.error("Open failed", err);
+      }
+    }
+  };
+
+
   const handleFolderClick = (folder: FileItem) => {
     setCurrentFolderId(folder.id);
     setSearchQuery(""); // Clear search when navigating
@@ -529,6 +545,7 @@ export default function Home() {
                             file={file}
                             selected={selectedFile?.id === file.id}
                             onClick={() => handleSelect(file)}
+                            onDoubleClick={() => handleOpen(file)}
                             onContextMenu={(e) => handleContextMenu(e, file)}
                           />
                         ))}
@@ -553,6 +570,7 @@ export default function Home() {
                     items={currentItems}
                     selectedId={selectedFile?.id}
                     onSelect={handleSelect}
+                    onDoubleClick={handleOpen}
                     onContextMenu={handleContextMenu}
                   />
                 </div>

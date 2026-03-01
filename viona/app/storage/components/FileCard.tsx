@@ -6,6 +6,7 @@ interface FileCardProps {
   file: FileItem;
   selected?: boolean;
   onClick?: () => void;
+  onDoubleClick?: () => void;
   onContextMenu?: (e: React.MouseEvent) => void;
 }
 
@@ -13,6 +14,7 @@ export default function FileCard({
   file,
   selected,
   onClick,
+  onDoubleClick,
   onContextMenu,
 }: FileCardProps) {
   const Icon = getIconForType(file.type);
@@ -21,6 +23,7 @@ export default function FileCard({
   return (
     <div
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
       className={cn(
         // Base layout & Animation Physics
