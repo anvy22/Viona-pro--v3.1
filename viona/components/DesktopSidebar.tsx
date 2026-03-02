@@ -27,6 +27,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "./ui/tooltip";
+import { UsageMeter } from "./UsageMeter";
 
 
 const routes = [
@@ -37,7 +38,7 @@ const routes = [
   { href: "/workflows", label: "Workflows", icon: Layers2Icon },
   { href: "/chat", label: "Chat", icon: MessageCircle },
   { href: "/credentials", label: "Credentials", icon: ShieldCheckIcon },
-  // { href: "/billing", label: "Billing", icon: CoinsIcon },
+  { href: "/billing", label: "Billing", icon: CoinsIcon },
   { href: "/organization", label: "Organization", icon: Building2 }
 ];
 
@@ -90,14 +91,14 @@ const DesktopSidebar = () => {
   // Don't render with transitions until mounted to prevent hydration flicker
   if (!isMounted) {
     return (
-      <div className="hidden relative md:block min-w-[240px] max-w-[240px] h-screen overflow-hidden w-full bg-primary/5 dark:bg-secondary/30 dark:text-foreground text-muted-foreground border-r-2 border-separate">
+      <div className="hidden relative md:flex flex-col min-w-[240px] max-w-[240px] h-screen overflow-hidden w-full bg-primary/5 dark:bg-secondary/30 dark:text-foreground text-muted-foreground border-r-2 border-separate">
         <div className="flex items-center justify-between gap-2 border-b-[1px] border-separate p-4">
           <Logo />
           <Button variant="ghost" size="icon" className="shrink-0">
             <ChevronLeft size={20} />
           </Button>
         </div>
-        <div className="flex flex-col p-2">
+        <div className="flex flex-col p-2 flex-1">
           {routes.map((route) => (
             <Link
               key={route.href}
@@ -109,6 +110,7 @@ const DesktopSidebar = () => {
             </Link>
           ))}
         </div>
+        <UsageMeter isCollapsed={false} />
       </div>
     );
   }
@@ -116,7 +118,7 @@ const DesktopSidebar = () => {
   return (
     <TooltipProvider>
       <div
-        className="hidden relative md:block h-screen overflow-hidden bg-primary/5 dark:bg-secondary/30 dark:text-foreground text-muted-foreground border-r-2 border-separate transition-all duration-300 ease-in-out"
+        className="hidden relative md:flex flex-col h-screen overflow-hidden bg-primary/5 dark:bg-secondary/30 dark:text-foreground text-muted-foreground border-r-2 border-separate transition-all duration-300 ease-in-out"
         style={{
           width: isCollapsed ? '65px' : '240px',
           minWidth: isCollapsed ? '65px' : '240px',
@@ -143,7 +145,7 @@ const DesktopSidebar = () => {
         </div>
 
         {/* Sidebar links */}
-        <div className="flex flex-col p-2">
+        <div className="flex flex-col p-2 flex-1">
           {routes.map((route) => {
             const isActive = activeRoute.href === route.href;
             
@@ -182,6 +184,9 @@ const DesktopSidebar = () => {
             return linkElement;
           })}
         </div>
+
+        {/* Usage Meter at bottom */}
+        <UsageMeter isCollapsed={isCollapsed} />
       </div>
     </TooltipProvider>
   );
@@ -213,7 +218,7 @@ export function MobileSidebar() {
           side={"left"}
         >
           <Logo />
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 flex-1">
             {routes.map((route) => (
               <Link
                 key={route.href}
@@ -231,6 +236,7 @@ export function MobileSidebar() {
               </Link>
             ))}
           </div>
+          <UsageMeter isCollapsed={false} />
         </SheetContent>
       </Sheet>
     </div>
