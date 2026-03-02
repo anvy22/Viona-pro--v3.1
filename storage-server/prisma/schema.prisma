@@ -1,0 +1,41 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String   @id
+  email        String   @unique
+  files        File[]
+  storageUsed  BigInt   @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model File {
+  id         String   @id @default(uuid())
+  name       String
+  type       String
+  size       BigInt   @default(0)
+  mimeType   String?
+  gcsKey     String?
+
+  parentId   String?
+  parent     File?    @relation("FileTree", fields: [parentId], references: [id])
+  children   File[]   @relation("FileTree")
+
+  ownerId    String
+  owner      User     @relation(fields: [ownerId], references: [id])
+
+  isStarred  Boolean  @default(false)
+  isTrashed  Boolean  @default(false)
+  trashedAt  DateTime?
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([ownerId, parentId])
+}

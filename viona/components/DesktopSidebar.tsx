@@ -14,7 +14,8 @@ import {
   GitBranch,
   Building2,
   Warehouse,
-  MessageCircle
+  MessageCircle,
+  HardDrive,
 } from "lucide-react";
 import { Logo } from "./Logo";
 import Link from "next/link";
@@ -39,7 +40,8 @@ const routes = [
   { href: "/chat", label: "Chat", icon: MessageCircle },
   { href: "/credentials", label: "Credentials", icon: ShieldCheckIcon },
   { href: "/billing", label: "Billing", icon: CoinsIcon },
-  { href: "/organization", label: "Organization", icon: Building2 }
+  { href: "/organization", label: "Organization", icon: Building2 },
+  { href: "/storage", label: "Storage", icon: HardDrive }
 ];
 
 // Global state to persist across re-renders and route changes
