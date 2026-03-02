@@ -5,7 +5,7 @@ services:
       - "5672:5672"
       - "15672:15672"
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
       interval: 10s
       timeout: 10s
       retries: 5
@@ -28,13 +28,28 @@ services:
     volumes:
       - mongodb_data:/data/db
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
 
-
+  postgres:
+    image: postgres:16
+    container_name: storage_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: cloud_drive
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   notification-server:
     build: ./notification-server
@@ -49,18 +64,19 @@ services:
       mongodb:
         condition: service_healthy
     ports:
-      - "5001:5001"
+      - "5002:5001"
 
   frontend:
     build:
       context: ./viona
       args:
         # ✅ Pass NEXT_PUBLIC_* variables as build arguments
-        NEXT_PUBLIC_NOTIFICATION_SERVER_URL: http://localhost:5001
+        NEXT_PUBLIC_NOTIFICATION_SERVER_URL: http://localhost:5002
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
         NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: ${NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}
         NEXT_PUBLIC_CLERK_SIGN_IN_URL: /sign-in
         NEXT_PUBLIC_CLERK_SIGN_UP_URL: /sign-up
+        NEXT_PUBLIC_STORAGE_SERVER_URL: http://localhost:5003
     container_name: viona-frontend
     ports:
       - "3000:3000"
@@ -109,5 +125,22 @@ services:
       mongodb:
         condition: service_healthy
 
+  storage-server:
+    build: ./storage-server
+    container_name: storage-server
+    restart: always
+    ports:
+      - "5003:3001"
+    environment:
+      DATABASE_URL: ${STORAGE_DB_URL}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      AZURE_STORAGE_CONNECTION_STRING: ${AZURE_STORAGE_CONNECTION_STRING}
+      AZURE_STORAGE_CONTAINER_NAME: ${AZURE_STORAGE_CONTAINER_NAME}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   mongodb_data:
+  pgdata:
