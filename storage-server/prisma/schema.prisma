@@ -6,13 +6,15 @@ generator client {
   provider = "prisma-client-js"
 }
 
-model User {
+model StorageUser {
   id           String   @id
   email        String   @unique
   files        File[]
   storageUsed  BigInt   @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  @@map("storage_users")
 }
 
 model File {
@@ -28,7 +30,7 @@ model File {
   children   File[]   @relation("FileTree")
 
   ownerId    String
-  owner      User     @relation(fields: [ownerId], references: [id])
+  owner      StorageUser @relation(fields: [ownerId], references: [id])
 
   isStarred  Boolean  @default(false)
   isTrashed  Boolean  @default(false)

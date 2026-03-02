@@ -9,7 +9,7 @@ export async function syncUserFromClerk(payload: any) {
   }
 
   // Check if user exists
-  const existingUser = await prisma.user.findUnique({
+  const existingUser = await prisma.storageUser.findUnique({
     where: { id: clerkUserId },
   });
 
@@ -18,7 +18,7 @@ export async function syncUserFromClerk(payload: any) {
   }
 
   // Create user if not exists
-  return prisma.user.create({
+  return prisma.storageUser.create({
     data: {
       id: clerkUserId,
       email,
