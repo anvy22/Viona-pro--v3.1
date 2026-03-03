@@ -43,7 +43,7 @@ const PricingSection: React.FC<PricingSectionProps> = ({ onGetStarted }) => {
     {
       name: "Professional",
       description: "For growing teams that need advanced features",
-      monthlyPrice: 79,
+      monthlyPrice: 99,
       annualPrice: 65,
       features: [
         "Up to 25 team members",

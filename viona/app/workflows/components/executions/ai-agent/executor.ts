@@ -105,7 +105,7 @@ function buildToolsFromNodes(
                     method: z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]).default("GET").describe("HTTP method"),
                     body: z.string().optional().describe("Request body (JSON string)"),
                 }),
-                // @ts-expect-error — AI SDK v6 tool() typing requires explicit cast
+            
                 execute: wrapExecute(toolNode.id, async ({ url, method, body }: { url: string; method: string; body?: string }) => {
                     try {
                         const options: any = {};
@@ -128,7 +128,7 @@ function buildToolsFromNodes(
                     subject: z.string().describe("Email subject line"),
                     body: z.string().describe("Email body (plain text)"),
                 }),
-                // @ts-expect-error — AI SDK v6 tool() typing
+                
                 execute: wrapExecute(toolNode.id, async ({ to, subject, body }: { to: string; subject: string; body: string }) => {
                     try {
                         const nodemailer = await import("nodemailer");
@@ -163,7 +163,7 @@ function buildToolsFromNodes(
                 inputSchema: z.object({
                     url: z.string().describe("The URL to fetch content from"),
                 }),
-                // @ts-expect-error — AI SDK v6 tool() typing
+        
                 execute: wrapExecute(toolNode.id, async ({ url }: { url: string }) => {
                     try {
                         const response = await ky(url).text();
@@ -180,7 +180,7 @@ function buildToolsFromNodes(
                 inputSchema: z.object({
                     expression: z.string().describe("The math expression to evaluate, e.g. '(15 * 3) + Math.sqrt(144)'"),
                 }),
-                // @ts-expect-error — AI SDK v6 tool() typing
+                
                 execute: wrapExecute(toolNode.id, async ({ expression }: { expression: string }) => {
                     try {
                         const cleaned = expression.replace(/Math\.\w+/g, "").replace(/PI|E/g, "");
@@ -214,7 +214,7 @@ function buildToolsFromNodes(
                     query: z.string().optional().describe("Optional search query — product name or SKU. Leave empty to list all products."),
                     limit: z.number().optional().describe("Max results to return (default 10)"),
                 }),
-                // @ts-expect-error — AI SDK v6 tool() typing
+                
                 execute: wrapExecute(toolNode.id, async ({ query, limit }: { query?: string; limit?: number }) => {
                     try {
                         const where: any = {};
@@ -259,7 +259,7 @@ function buildToolsFromNodes(
             tools["list_warehouses"] = tool({
                 description: "List all warehouses in the organization with their addresses.",
                 inputSchema: z.object({}),
-                // @ts-expect-error — AI SDK v6 tool() typing
+    
                 execute: wrapExecute(toolNode.id, async () => {
                     try {
                         const warehouses = await prisma.warehouse.findMany({
@@ -286,7 +286,7 @@ function buildToolsFromNodes(
                     status: z.string().optional().describe("Filter by order status"),
                     limit: z.number().optional().describe("Max results (default 10)"),
                 }),
-                // @ts-expect-error — AI SDK v6 tool() typing
+                
                 execute: wrapExecute(toolNode.id, async ({ query, status, limit }: { query?: string; status?: string; limit?: number }) => {
                     try {
                         const where: any = {};
@@ -346,7 +346,7 @@ function buildToolsFromNodes(
                     orderId: z.string().describe("The order ID to update"),
                     newStatus: z.string().describe("New status (e.g. 'processing', 'shipped', 'delivered', 'cancelled')"),
                 }),
-                // @ts-expect-error — AI SDK v6 tool() typing
+                
                 execute: wrapExecute(toolNode.id, async ({ orderId, newStatus }: { orderId: string; newStatus: string }) => {
                     try {
                         const order = await prisma.order.findFirst({
@@ -378,7 +378,6 @@ function buildToolsFromNodes(
             tools["get_order_stats"] = tool({
                 description: "Get summary statistics of orders — counts by status, total revenue, etc.",
                 inputSchema: z.object({}),
-                // @ts-expect-error — AI SDK v6 tool() typing
                 execute: wrapExecute(toolNode.id, async () => {
                     try {
                         const orders = await prisma.order.findMany({
@@ -408,7 +407,6 @@ function buildToolsFromNodes(
                 inputSchema: z.object({
                     input: z.string().describe("Input data for this tool"),
                 }),
-                // @ts-expect-error — AI SDK v6 tool() typing requires explicit cast
                 execute: wrapExecute(toolNode.id, async ({ input }: { input: string }) => {
                     return `Tool "${toolName}" received: ${input}. (Generic tool execution placeholder)`;
                 }),
