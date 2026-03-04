@@ -5,7 +5,7 @@ import { PlusIcon } from "lucide-react";
 import { memo, useState  } from "react";
 import { PlaceholderNode } from "./react-flow/placeholder-node";
 import { WorkflowNode } from "./workflow-node";
-import { NodeSelector } from "../app/workflows/components/node-selector";
+import { NodeSelector } from "../app/(dashboard)/workflows/components/node-selector";
 
 export const InitialNode = memo((props : NodeProps) =>{
     const [selectorOpen, setSelectorOpen] = useState(false);

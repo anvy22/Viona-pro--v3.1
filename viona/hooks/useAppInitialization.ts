@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useOrgStore } from '@/hooks/useOrgStore';
-import { getUserOrganizations } from '@/app/organization/actions';
+import { getUserOrganizations } from '@/app/(dashboard)/organization/actions';
 
 export function useAppInitialization() {
   const { user: clerkUser, isLoaded: clerkLoaded } = useUser();

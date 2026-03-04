@@ -72,26 +72,87 @@ export async function GET(request: Request) {
     const bigOrgId = BigInt(orgId);
     console.log(`Orders API: Fetching orders for org: ${bigOrgId}`);
     
-    const orders = await prisma.order.findMany({
-      where: { org_id: bigOrgId },
-      include: {
-        orderItems: {
-          include: { 
-            product: { 
-              select: { product_id: true, name: true, sku: true } 
-            } 
-          }
-        },
-        placedBy: { 
-          select: { user_id: true, email: true } 
-        },
-      },
-      orderBy: {
-        created_at: 'desc'
-      }
-    });
+    const page = parseInt(url.searchParams.get('page') || '1');
+    const pageSize = parseInt(url.searchParams.get('pageSize') || '10');
+    const search = url.searchParams.get('search') || '';
+    const sortBy = url.searchParams.get('sortBy') || 'orderDate';
+    const sortOrder = url.searchParams.get('sortOrder') || 'desc';
+    const statusFilter = url.searchParams.get('statusFilter') || 'all';
+    const dateFrom = url.searchParams.get('dateFrom');
+    const dateTo = url.searchParams.get('dateTo');
 
-    console.log(`Orders API: Found ${orders.length} orders from database`);
+    const where: any = { org_id: bigOrgId };
+
+    if (search) {
+      where.OR = [
+        { customer_name: { contains: search, mode: 'insensitive' } },
+        { customer_email: { contains: search, mode: 'insensitive' } },
+        { customer_phone: { contains: search, mode: 'insensitive' } },
+        {
+          orderItems: {
+            some: {
+              product: {
+                name: { contains: search, mode: 'insensitive' }
+              }
+            }
+          }
+        }
+      ];
+      if (!isNaN(Number(search))) {
+        where.OR.push({ order_id: BigInt(search) });
+      }
+    }
+
+    if (statusFilter !== 'all') {
+      where.status = statusFilter;
+    }
+
+    if (dateFrom || dateTo) {
+      where.order_date = {};
+      if (dateFrom) where.order_date.gte = new Date(dateFrom);
+      if (dateTo) {
+        const toDate = new Date(dateTo);
+        toDate.setHours(23, 59, 59, 999);
+        where.order_date.lte = toDate;
+      }
+    }
+
+    let prismaOrderBy: any = { created_at: 'desc' };
+    if (sortBy === 'orderDate' || sortBy === 'created_at') {
+      prismaOrderBy = { order_date: sortOrder };
+    } else if (sortBy === 'totalAmount') {
+      prismaOrderBy = { total_amount: sortOrder };
+    } else if (sortBy === 'status') {
+      prismaOrderBy = { status: sortOrder };
+    } else if (sortBy === 'id' || sortBy === 'order_id') {
+      prismaOrderBy = { order_id: sortOrder };
+    }
+
+    const skip = (page - 1) * pageSize;
+
+    const [total, orders] = await prisma.$transaction([
+      prisma.order.count({ where }),
+      prisma.order.findMany({
+        where,
+        include: {
+          orderItems: {
+            include: { 
+              product: { 
+                select: { product_id: true, name: true, sku: true } 
+              } 
+            }
+          },
+          placedBy: { 
+            select: { user_id: true, email: true } 
+          },
+        },
+        orderBy: prismaOrderBy,
+        skip,
+        take: pageSize
+      })
+    ]);
+
+    console.log(`Orders API: Found ${orders.length} orders from database (Total: ${total})`);
 
     const mappedOrders: Order[] = orders.map((o) => {
       // Type-safe access with fallbacks
@@ -136,10 +197,16 @@ export async function GET(request: Request) {
       };
     });
 
-    return NextResponse.json(mappedOrders, {
+    return NextResponse.json({
+      data: mappedOrders,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize)
+    }, {
       headers: {
         'X-Cache': 'DISABLED',
-        'X-DB-Count': mappedOrders.length.toString(),
+        'X-DB-Count': total.toString(),
       },
     });
     

@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useOrgStore } from "@/hooks/useOrgStore";
-import { getUsageStats } from "@/app/billing/billing-actions";
+import { getUsageStats } from "@/app/(dashboard)/billing/billing-actions";
 import { Zap, ArrowUpRight, Crown } from "lucide-react";
 import {
   Tooltip,

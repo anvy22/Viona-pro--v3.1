@@ -7,6 +7,7 @@ import Head from "next/head";
 
 import HeroSection from "./components/HeroSection";
 import FeaturesSection from "./components/FeaturesSection";
+import WorkflowShowcase from "./components/WorkflowShowcase";
 import TestimonialsSection from "./components/TestimonialsSection";
 import PricingSection from "./components/PricingSection";
 import CTASection from "./components/CTASection";
@@ -61,6 +62,7 @@ export default function LandingPage() {
         <main>
           <HeroSection onGetStarted={handleGetStarted} />
           <FeaturesSection />
+          <WorkflowShowcase />
           <TestimonialsSection />
           <PricingSection onGetStarted={handleGetStarted} />
           <CTASection onGetStarted={handleGetStarted} />

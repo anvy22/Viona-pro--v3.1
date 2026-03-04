@@ -14,7 +14,7 @@ import { RecentWorkflows } from './components/RecentWorkflows';
 import { RecentOrders } from './components/RecentOrders';
 import { LowStockProducts } from './components/LowStockProducts';
 import { RevenueChart } from './components/RevenueChart';
-import { OrganizationSelector } from '@/app/organization/components/OrganizationSelector';
+import { OrganizationSelector } from '@/app/(dashboard)/organization/components/OrganizationSelector';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
@@ -108,13 +108,6 @@ export default function DashboardPage() {
     <div className="flex-1 space-y-6 p-1 md:p-6 w-full max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <div className="w-[200px]">
-          <OrganizationSelector
-            organizations={orgs}
-            selectedOrgId={selectedOrgId}
-            onOrganizationSelect={(id) => setSelectedOrgId(id)}
-          />
-        </div>
       </div>
 
       {isLoading ? (

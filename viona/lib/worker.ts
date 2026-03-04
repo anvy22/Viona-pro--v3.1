@@ -2,7 +2,7 @@ import { Worker, type Job } from "bullmq";
 import { NodeType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { topologicalSort } from "./workflow-utils";
-import { getExecutor } from "@/app/workflows/components/executions/lib/executor-registry";
+import { getExecutor } from "@/app/(dashboard)/workflows/components/executions/lib/executor-registry";
 import { broadcastStatus } from "./status-broadcaster";
 import type { WorkflowJobData } from "./queue";
 

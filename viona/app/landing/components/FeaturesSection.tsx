@@ -181,14 +181,35 @@ const FeaturesSection: React.FC = () => {
   };
 
   return (
-    <section id="features" className="py-20 bg-muted/30">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <h2 className="text-3xl lg:text-4xl font-bold text-foreground mb-4">
+    <section id="features" className="py-24 relative overflow-hidden bg-background">
+      {/* Ambient Blobs */}
+      <div 
+        className="absolute top-0 left-0 w-full h-full pointer-events-none"
+        style={{
+          background: `
+            radial-gradient(circle at 10% 20%, rgba(34, 197, 94, 0.05) 0%, transparent 50%),
+            radial-gradient(circle at 90% 80%, rgba(250, 204, 21, 0.04) 0%, transparent 50%),
+            radial-gradient(circle at 50% 50%, rgba(134, 239, 172, 0.03) 0%, transparent 70%)
+          `
+        }}
+      />
+      
+      {/* Dot Grid */}
+      <div 
+        className="absolute inset-0 opacity-[0.15] pointer-events-none"
+        style={{
+          backgroundImage: 'radial-gradient(hsl(var(--foreground) / 0.1) 1px, transparent 1px)',
+          backgroundSize: '40px 40px',
+        }}
+      />
+
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="text-center max-w-3xl mx-auto mb-20">
+          <h2 className="text-3xl lg:text-5xl font-bold text-foreground mb-6">
             Everything You Need to{" "}
-            <span className="text-primary">Grow Your Business</span>
+            <span className="text-primary bg-gradient-to-r from-primary to-primary/80 bg-clip-text">Grow Your Business</span>
           </h2>
-          <p className="text-lg text-muted-foreground">
+          <p className="text-lg text-muted-foreground leading-relaxed">
             Powerful features designed to streamline your operations, provide
             actionable insights, and accelerate your business growth.
           </p>
