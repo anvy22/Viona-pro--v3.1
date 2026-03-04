@@ -14,8 +14,8 @@ const CTASection: React.FC<CTASectionProps> = ({ onGetStarted }) => {
   ];
 
   return (
-    <section className="py-20 bg-gradient-to-br from-primary/5 via-accent/5 to-primary/5 border-t border-border">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="py-20 relative w-full">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="max-w-4xl mx-auto text-center">
           {/* Main CTA */}
           <div className="space-y-8">
@@ -51,13 +51,13 @@ const CTASection: React.FC<CTASectionProps> = ({ onGetStarted }) => {
                 Start Your Free Trial
                 <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </button>
-              <button className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold rounded-lg text-foreground bg-background border border-border hover:bg-muted transition-smooth">
+              <button className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold rounded-lg text-foreground bg-background/60 border border-border/30 hover:bg-muted/60 transition-smooth">
                 Schedule a Demo
               </button>
             </div>
 
             {/* Trust Signals */}
-            <div className="pt-8 border-t border-border">
+            <div className="pt-8 border-t border-border/15">
               <p className="text-sm text-muted-foreground mb-4">
                 Trusted by industry leaders
               </p>

@@ -62,26 +62,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onGetStarted }) => {
   const barHeights = [40, 70, 50, 80, 60, 90, 75];
 
   return (
-    <section className="relative overflow-hidden">
-      {/* Background with green-yellow gradient */}
-      <div 
-        className="absolute inset-0"
-        style={{
-          background: `
-            radial-gradient(ellipse 1000px 600px at 20% 20%, rgba(34, 197, 94, 0.08) 0%, transparent 60%),
-            radial-gradient(ellipse 800px 500px at 80% 80%, rgba(250, 204, 21, 0.06) 0%, transparent 50%),
-            radial-gradient(ellipse 1200px 700px at 60% 10%, rgba(134, 239, 172, 0.04) 0%, transparent 70%),
-            radial-gradient(ellipse 900px 400px at 10% 90%, rgba(252, 211, 77, 0.05) 0%, transparent 40%),
-            linear-gradient(135deg, 
-              hsl(var(--background)) 0%, 
-              rgba(34, 197, 94, 0.02) 40%,
-              rgba(250, 204, 21, 0.03) 70%,
-              hsl(var(--background)) 100%
-            )
-          `
-        }}
-      />
-      
+    <section className="relative w-full">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32 relative z-10">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Content */}
@@ -110,14 +91,14 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onGetStarted }) => {
                 Start Free Trial
                 <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
               </button>
-              <button className="inline-flex items-center justify-center px-6 py-3 border border-border text-base font-medium rounded-lg text-foreground bg-background/80 backdrop-blur-sm hover:bg-muted transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-0.5">
+              <button className="inline-flex items-center justify-center px-6 py-3 border border-border/30 text-base font-medium rounded-lg text-foreground bg-background/60 backdrop-blur-sm hover:bg-muted/60 transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-0.5">
                 <Play className="mr-2 h-4 w-4" />
                 Watch Demo
               </button>
             </div>
 
             {/* Trust Indicators */}
-            <div className="grid grid-cols-3 gap-8 pt-8 border-t border-border/50">
+            <div className="grid grid-cols-3 gap-8 pt-8 border-t border-border/15">
               <div className="text-center group">
                 <div className="flex items-center justify-center w-12 h-12 bg-transparent rounded-lg mb-2 mx-auto group-hover:scale-110 transition-transform duration-300">
                   <BarChart3 className="h-6 w-6 text-green-600" />
@@ -144,7 +125,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onGetStarted }) => {
 
           {/* Hero Visual */}
           <div className="relative">
-            <div className="bg-card/80 backdrop-blur-md rounded-2xl shadow-2xl p-6 border border-border/50 hover:shadow-3xl transition-all duration-500">
+            <div className="bg-card/60 backdrop-blur-md rounded-2xl shadow-xl p-6 border border-border/15 hover:shadow-2xl transition-all duration-500">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-foreground">Revenue Dashboard</h3>

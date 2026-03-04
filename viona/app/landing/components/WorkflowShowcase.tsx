@@ -41,9 +41,9 @@ const CustomNode = ({ data }: any) => {
       background: 'rgba(255, 255, 255, 0.9)',
       backdropFilter: 'blur(12px)',
       border: `1.5px solid ${s.border}`,
-      borderRadius: 16,
-      width: 210,
-      padding: '14px 16px',
+      borderRadius: 20,
+      width: 280,
+      padding: '20px 24px',
       boxShadow: `0 8px 30px rgba(0,0,0,0.06), 0 0 15px ${s.glow}`,
       fontFamily: "'Plus Jakarta Sans', sans-serif",
       position: 'relative',
@@ -57,17 +57,17 @@ const CustomNode = ({ data }: any) => {
           <Icon size={18} style={{ color: s.border }} />
         </div>
         <div style={{ minWidth: 0 }}>
-          <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: s.labelColor, margin: 0, marginBottom: 2 }}>
+          <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: s.labelColor, margin: 0, marginBottom: 4 }}>
             {data.type}
           </p>
-          <p style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', margin: 0, lineHeight: 1.3 }}>
+          <p style={{ fontSize: 15, fontWeight: 600, color: '#1a1a1a', margin: 0, lineHeight: 1.3 }}>
             {data.label}
           </p>
         </div>
       </div>
 
       {data.description && (
-        <p style={{ marginTop: 8, fontSize: 11, color: '#666', lineHeight: 1.5, margin: '8px 0 0' }}>
+        <p style={{ marginTop: 12, fontSize: 13, color: '#666', lineHeight: 1.5, margin: '12px 0 0' }}>
           {data.description}
         </p>
       )}
@@ -87,15 +87,15 @@ const CustomNode = ({ data }: any) => {
 const nodeTypes = { custom: CustomNode };
 
 /* ─── AI Business Graph Data ───────────────────────────── */
-const GAP_X = 280;
+const GAP_X = 420;
 
 const INITIAL_NODES: Node[] = [
-  { id: '1', type: 'custom', data: { label: 'Multi-channel Pulse', icon: Database,     type: 'trigger',   description: 'Shopify, Stripe & Ads Sync'  }, position: { x: 0,         y: 160 } },
-  { id: '2', type: 'custom', data: { label: 'AI Trend Analysis',   icon: Brain,        type: 'logic',     description: 'Predicting Growth Curves'    }, position: { x: GAP_X,     y: 160 } },
-  { id: '3', type: 'custom', data: { label: 'Growth Trigger',      icon: Zap,          type: 'condition', description: 'Automatic Insight Engine'    }, position: { x: GAP_X * 2, y: 160 } },
-  { id: '4', type: 'custom', data: { label: 'Strategy Recs',       icon: LineChart,    type: 'action',    description: 'AI-driven Next Steps'        }, position: { x: GAP_X * 3, y: 40  } },
-  { id: '5', type: 'custom', data: { label: 'Real-time Sync',      icon: Activity,     type: 'action',    description: 'Instant Dashboard Update'    }, position: { x: GAP_X * 3, y: 290 } },
-  { id: '6', type: 'custom', data: { label: 'Business Growth',     icon: CheckCircle2, type: 'action',    description: 'Automated Scalability'       }, position: { x: GAP_X * 4.2, y: 160 } },
+  { id: '1', type: 'custom', data: { label: 'Multi-channel Pulse', icon: Database,     type: 'trigger',   description: 'Shopify, Stripe & Ads Sync'  }, position: { x: 0,           y: 160 } },
+  { id: '2', type: 'custom', data: { label: 'AI Trend Analysis',   icon: Brain,        type: 'logic',     description: 'Predicting Growth Curves'    }, position: { x: GAP_X,       y: 30  } },
+  { id: '3', type: 'custom', data: { label: 'Growth Trigger',      icon: Zap,          type: 'condition', description: 'Automatic Insight Engine'    }, position: { x: GAP_X * 2,   y: 160 } },
+  { id: '4', type: 'custom', data: { label: 'Strategy Recs',       icon: LineChart,    type: 'action',    description: 'AI-driven Next Steps'        }, position: { x: GAP_X * 3,   y: 30  } },
+  { id: '5', type: 'custom', data: { label: 'Real-time Sync',      icon: Activity,     type: 'action',    description: 'Instant Dashboard Update'    }, position: { x: GAP_X * 3,   y: 300 } },
+  { id: '6', type: 'custom', data: { label: 'Business Growth',     icon: CheckCircle2, type: 'action',    description: 'Automated Scalability'       }, position: { x: GAP_X * 4.1, y: 160 } },
 ];
 
 const INITIAL_EDGES: Edge[] = [
@@ -129,7 +129,6 @@ export default function WorkflowShowcase() {
       position: 'relative',
       overflow: 'hidden',
       padding: '120px 0 100px',
-      background: 'hsl(var(--background))',
     }}>
 
       <style>{`
@@ -155,8 +154,12 @@ export default function WorkflowShowcase() {
         .wf-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(34, 197, 94, 0.35) !important; }
         
         .wf-flow-container {
-          mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
-          -webkit-mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
+          mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent),
+                      linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+          -webkit-mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent),
+                              linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+          mask-composite: intersect;
+          -webkit-mask-composite: source-in;
         }
 
         .react-flow__edge-path {
@@ -222,7 +225,7 @@ export default function WorkflowShowcase() {
         {/* ── Visual Flow Canvas ── */}
         <div 
           className={`wf-flow-container ${mounted ? 'wf-up wf-up-2' : ''}`} 
-          style={{ width: '100%', height: 500, marginBottom: 80, position: 'relative' }}
+          style={{ width: '100%', height: 520, marginBottom: 80, position: 'relative' }}
         >
           {/* Subtle Grid under the flow */}
           <div style={{
@@ -257,8 +260,9 @@ export default function WorkflowShowcase() {
               className={`wf-feat ${mounted ? `wf-up wf-up-3` : ''}`}
               style={{
                 padding: '40px', borderRadius: 24,
-                background: 'hsl(var(--card))',
-                border: '1px solid hsl(var(--border))',
+                background: 'hsl(var(--card) / 0.6)',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid hsl(var(--border) / 0.15)',
                 boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
                 animationDelay: `${0.4 + idx * 0.1}s`,
               }}

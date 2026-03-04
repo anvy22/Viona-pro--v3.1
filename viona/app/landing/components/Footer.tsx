@@ -77,7 +77,7 @@ const Footer: React.FC = () => {
   };
 
   return (
-    <footer className="bg-card border-t border-border">
+    <footer className="bg-card/60 backdrop-blur-sm border-t border-border/15">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         {/* Main Footer Content */}
         <div className="py-16">
@@ -151,7 +151,7 @@ const Footer: React.FC = () => {
         </div>
 
         {/* Newsletter Signup */}
-        <div className="py-8 border-t border-border">
+        <div className="py-8 border-t border-border/15">
           <div className="max-w-md mx-auto text-center lg:text-left lg:max-w-none lg:flex lg:items-center lg:justify-between">
             <div>
               <h4 className="text-lg font-semibold text-foreground mb-2">
@@ -177,7 +177,7 @@ const Footer: React.FC = () => {
         </div>
 
         {/* Bottom Footer */}
-        <div className="py-6 border-t border-border">
+        <div className="py-6 border-t border-border/15">
           <div className="flex flex-col lg:flex-row justify-between items-center space-y-4 lg:space-y-0">
             <div className="text-sm text-muted-foreground">
               © 2025 Viona Pro. All rights reserved.

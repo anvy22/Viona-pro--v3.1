@@ -181,7 +181,7 @@ const FeaturesSection: React.FC = () => {
   };
 
   return (
-    <section id="features" className="py-24 relative overflow-hidden bg-background">
+    <section id="features" className="py-24 relative w-full">
       {/* Ambient Blobs */}
       <div 
         className="absolute top-0 left-0 w-full h-full pointer-events-none"
@@ -194,15 +194,6 @@ const FeaturesSection: React.FC = () => {
         }}
       />
       
-      {/* Dot Grid */}
-      <div 
-        className="absolute inset-0 opacity-[0.15] pointer-events-none"
-        style={{
-          backgroundImage: 'radial-gradient(hsl(var(--foreground) / 0.1) 1px, transparent 1px)',
-          backgroundSize: '40px 40px',
-        }}
-      />
-
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center max-w-3xl mx-auto mb-20">
           <h2 className="text-3xl lg:text-5xl font-bold text-foreground mb-6">
@@ -282,9 +273,9 @@ const FeaturesSection: React.FC = () => {
                             ? 'hsl(var(--primary))' 
                             : isConnected 
                               ? 'hsl(var(--primary) / 0.6)' 
-                              : 'hsl(var(--border))'
+                              : 'transparent'
                         }
-                        strokeWidth={isHovered ? 3 : isConnected ? 2 : 1}
+                        strokeWidth={isHovered ? 3 : isConnected ? 2 : 0}
                         style={{
                           transition: 'stroke 0.3s ease, stroke-width 0.3s ease',
                           filter: isHovered ? `url(#glow-${index})` : 'none'
@@ -345,7 +336,7 @@ const FeaturesSection: React.FC = () => {
         </div>
 
         <div className="text-center mt-16">
-          <div className="bg-card rounded-2xl p-8 border border-border shadow-card max-w-2xl mx-auto">
+          <div className="bg-card/60 backdrop-blur-sm rounded-2xl p-8 border border-border/20 max-w-2xl mx-auto">
             <h3 className="text-2xl font-bold text-foreground mb-4">
               Ready to Transform Your Business?
             </h3>
@@ -354,10 +345,10 @@ const FeaturesSection: React.FC = () => {
               success.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-primary-foreground bg-primary hover:bg-primary/90 transition-smooth">
+              <button className="inline-flex items-center justify-center px-6 py-3 border-0 text-base font-medium rounded-md text-primary-foreground bg-primary hover:bg-primary/90 transition-smooth">
                 Start Free Trial
               </button>
-              <button className="inline-flex items-center justify-center px-6 py-3 border border-border text-base font-medium rounded-md text-foreground bg-background hover:bg-muted transition-smooth">
+              <button className="inline-flex items-center justify-center px-6 py-3 border border-border/30 text-base font-medium rounded-md text-foreground bg-background/60 hover:bg-muted/60 transition-smooth">
                 Schedule Demo
               </button>
             </div>

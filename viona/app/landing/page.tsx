@@ -8,7 +8,6 @@ import Head from "next/head";
 import HeroSection from "./components/HeroSection";
 import FeaturesSection from "./components/FeaturesSection";
 import WorkflowShowcase from "./components/WorkflowShowcase";
-import TestimonialsSection from "./components/TestimonialsSection";
 import PricingSection from "./components/PricingSection";
 import CTASection from "./components/CTASection";
 import Footer from "./components/Footer";
@@ -56,14 +55,36 @@ export default function LandingPage() {
         <meta property="og:type" content="website" />
       </Head>
 
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background relative selection:bg-primary/20 overflow-hidden">
+        {/* Global Ambient Background & Dot Grid */}
+        <div 
+          className="fixed inset-0 pointer-events-none z-0"
+          style={{
+            background: `
+              radial-gradient(circle at 0% 0%, rgba(34, 197, 94, 0.08) 0%, transparent 50vw),
+              radial-gradient(circle at 100% 100%, rgba(250, 204, 21, 0.06) 0%, transparent 50vw),
+              radial-gradient(circle at 50% 50%, rgba(134, 239, 172, 0.03) 0%, transparent 50vw)
+            `
+          }}
+        />
+        <div 
+          className="fixed inset-0 opacity-[0.15] pointer-events-none z-0"
+          style={{
+            backgroundImage: 'radial-gradient(hsl(var(--foreground) / 0.1) 1px, transparent 1px)',
+            backgroundSize: '40px 40px',
+            backgroundPosition: 'center center',
+            maskImage: 'radial-gradient(ellipse at center, black 60%, transparent 100%)',
+            WebkitMaskImage: 'radial-gradient(ellipse at center, black 60%, transparent 100%)',
+          }}
+        />
+
         <Header onLogin={handleLogin} onGetStarted={handleGetStarted} />
 
-        <main>
+        <main className="relative z-10 w-full">
           <HeroSection onGetStarted={handleGetStarted} />
           <FeaturesSection />
           <WorkflowShowcase />
-          <TestimonialsSection />
+         
           <PricingSection onGetStarted={handleGetStarted} />
           <CTASection onGetStarted={handleGetStarted} />
 

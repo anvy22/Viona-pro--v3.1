@@ -84,7 +84,7 @@ const PricingSection: React.FC<PricingSectionProps> = ({ onGetStarted }) => {
   ];
 
   return (
-    <section id="pricing" className="py-20 bg-muted/30">
+    <section id="pricing" className="py-20 relative w-full">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
@@ -138,10 +138,10 @@ const PricingSection: React.FC<PricingSectionProps> = ({ onGetStarted }) => {
               )}
 
               <div
-                className={`bg-card rounded-2xl p-8 border transition-all duration-300 hover:shadow-modal h-full ${
+                className={`bg-card/60 backdrop-blur-sm rounded-2xl p-8 border transition-all duration-300 hover:shadow-xl h-full ${
                   plan.popular
-                    ? "border-primary shadow-card"
-                    : "border-border hover:-translate-y-1"
+                    ? "border-primary/30 shadow-lg"
+                    : "border-border/15 hover:-translate-y-1"
                 }`}
               >
                 {/* Plan Header */}
