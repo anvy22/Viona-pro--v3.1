@@ -30,6 +30,11 @@ function shouldShowOrgSelector(pathname: string): boolean {
 
 export const DashboardHeader = React.memo(function DashboardHeader() {
   const pathname = usePathname();
+  
+  // Check if we are in the workflow editor (e.g., /workflows/[workflowId])
+  const isWorkflowEditor = pathname.match(/^\/workflows\/[^/]+$/);
+  if (isWorkflowEditor) return null;
+
   const { selectedOrgId, orgs, setSelectedOrgId } = useOrgStore();
   const showOrgSelector = shouldShowOrgSelector(pathname);
 
