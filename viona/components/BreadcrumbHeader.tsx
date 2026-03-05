@@ -16,7 +16,7 @@ export const BreadcrumbHeader = () => {
     const paths = pathname === '/' ? [''] : pathname.split('/');
 
     return (
-        <div className='flex items-center justify-between w-full p-4 bg-background border-b md:justify-start'>
+        <div className='flex items-center justify-between w-full p-3 bg-background md:justify-start'>
             <div className='flex items-center gap-4'>
                 <MobileSidebar />
                 <Breadcrumb>

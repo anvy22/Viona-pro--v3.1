@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Warehouse, Package, TrendingUp, Building2 } from "lucide-react";
-import type { Warehouse as WarehouseType } from "../../api/warehouses/route";
+import type { Warehouse as WarehouseType } from "../../../api/warehouses/route";
 
 type Props = {
   warehouses: WarehouseType[];
@@ -48,7 +48,7 @@ export function WarehouseStats({ warehouses }: Props) {
   ];
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
       {stats.map((stat) => {
         const Icon = stat.icon;
         return (

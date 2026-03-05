@@ -16,8 +16,8 @@ export function LoadingSpinner({
   size = "md",
 }: LoadingSpinnerProps) {
   return (
-    <div className="flex flex-1 w-full items-center justify-center py-20">
-      <div className="flex flex-col items-center space-y-3">
+    <div className="flex flex-1 w-full items-center justify-center">
+      <div className="flex flex-col items-center space-y-50">
         <Loader2 className={`${sizeMap[size]} animate-spin text-primary`} />
         <p className="text-sm text-muted-foreground">{message}</p>
       </div>

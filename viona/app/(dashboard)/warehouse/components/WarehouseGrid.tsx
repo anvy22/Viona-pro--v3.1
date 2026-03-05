@@ -12,7 +12,7 @@ import {
   Trash2,
   ChevronRight
 } from "lucide-react";
-import type { Warehouse } from "../../api/warehouses/route";
+import type { Warehouse } from "../../../api/warehouses/route";
 import { EditWarehouseDialog } from "./EditWarehouseDialog";
 import { DeleteWarehouseDialog } from "./DeleteWarehouseDialog";
 import { useRouter } from "next/navigation";

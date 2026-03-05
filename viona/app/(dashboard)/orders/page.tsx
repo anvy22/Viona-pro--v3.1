@@ -363,7 +363,7 @@ export default function OrdersPage() {
 
         {/* Main Content Area */}
         {isLoading ? (
-          <LoadingSpinner />
+          <LoadingSpinner message="Loading orders..."/>
         ) : (
           <>
             {/* Case: No orders AT ALL in the organization */}

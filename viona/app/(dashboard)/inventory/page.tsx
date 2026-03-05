@@ -481,7 +481,9 @@ export default function InventoryPage() {
 
           {/* Main Content Area */}
           {isLoading ? (
-            <LoadingSpinner />
+            <div className="flex items-center justify-center py-12">
+              <LoadingSpinner message="Loading products..." />
+            </div>
           ) : (
             <>
               {/* Case: No products AT ALL in the organization */}

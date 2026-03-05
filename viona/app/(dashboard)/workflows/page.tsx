@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { useOrgStore, useCurrentOrgRole } from "@/hooks/useOrgStore";
 import { getWorkflowsForOrg, deleteWorkflowById } from "./workflow-actions";
 import { WorkflowListItem } from "./types";
-
+import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { WorkflowCard } from "./components/WorkflowCard";
 import { CreateWorkflowModal } from "./components/CreateWorkflowModal";
 import { EmptyState } from "./components/EmptyState";
@@ -61,7 +61,7 @@ export default function WorkflowsPage() {
         fetchWorkflows();
     }, [fetchWorkflows]);
 
-    // Filter workflows based on search query
+    
     const filteredWorkflows = workflows.filter(w => {
         if (!searchQuery.trim()) return true;
         const query = searchQuery.toLowerCase();
@@ -71,7 +71,6 @@ export default function WorkflowsPage() {
         );
     });
 
-    /* --------- EMPTY ORG STATES --------- */
 
     if (orgs.length === 0) {
         return (
@@ -102,7 +101,7 @@ export default function WorkflowsPage() {
         );
     }
 
-    /* --------- MAIN VIEW --------- */
+
 
     return (
         <>
@@ -137,7 +136,7 @@ export default function WorkflowsPage() {
                 </div>
 
                 {isLoading ? (
-                    <p className="text-muted-foreground">Loading workflows...</p>
+                   <LoadingSpinner message="Loading workflows..."/>
                 ) : filteredWorkflows.length === 0 ? (
                     searchQuery ? (
                         <div className="text-center py-12">

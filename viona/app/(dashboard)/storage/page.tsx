@@ -9,7 +9,6 @@ import NewFolderDialog from "./components/NewFolderDialog";
 import RenameDialog from "./components/RenameDialog";
 import DeleteDialog from "./components/DeleteDialog";
 import ContextMenu from "./components/ContextMenu";
-import Breadcrumbs from "./components/Breadcrumbs";
 
 import { useAuth } from "@clerk/nextjs";
 import * as StorageApi from "@/lib/storageApi";
@@ -108,14 +107,14 @@ export default function Home() {
 
   const handleFolderClick = (folder: FileItem) => {
     setCurrentFolderId(folder.id);
-    setSearchQuery(""); // Clear search when navigating
+    setSearchQuery(""); 
     setFolderHistory((prev) => [...prev, { id: folder.id, name: folder.name }]);
     setSelectedFile(null);
   };
 
   const navigateToBreadcrumb = (index: number) => {
     const newHistory = folderHistory.slice(0, index + 1);
-    setSearchQuery(""); // Clear search when navigating
+    setSearchQuery(""); 
     setFolderHistory(newHistory);
     setCurrentFolderId(newHistory[newHistory.length - 1].id);
     setSelectedFile(null);
@@ -428,7 +427,7 @@ export default function Home() {
   };
 
   return (
-          <div className="flex-1 overflow-y-auto relative">
+          <div className="flex-1 overflow-y-auto relative ">
             <div className="p-4 md:p-6">
               {loading && (
                 <div className="fixed top-[70px] left-0 right-0 flex justify-center text-gray-400 text-sm pointer-events-none z-50">
@@ -444,7 +443,21 @@ export default function Home() {
                 onChange={handleFileUpload}
               />
 
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1 mb-5">
+
+                <div className="flex items-center justify-between">
+                  {/* H1 color fixed */}
+                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {searchQuery
+                      ? `Search results for "${searchQuery}"`
+                      : folderHistory[folderHistory.length - 1].name}
+                  </h1>
+                  <span className="text-sm text-gray-500">
+                    {currentItems.length} items
+                  </span>
+                  
+                </div>
+                <br />
                 <nav className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                   <button
                     onClick={handleBack}
@@ -488,19 +501,6 @@ export default function Home() {
                     </button>
                   ))}
                 </nav>
-
-                <div className="flex items-center justify-between">
-                  {/* H1 color fixed */}
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {searchQuery
-                      ? `Search results for "${searchQuery}"`
-                      : folderHistory[folderHistory.length - 1].name}
-                  </h1>
-                  <span className="text-sm text-gray-500">
-                    {currentItems.length} items
-                  </span>
-                </div>
-                <br />
               </div>
 
               <Toolbar

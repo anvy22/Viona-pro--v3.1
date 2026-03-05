@@ -35,7 +35,7 @@ export const DashboardHeader = React.memo(function DashboardHeader() {
 
   return (
     <>
-      <header className="flex items-center justify-between px-6 py-4 h-[50px] w-full gap-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex-shrink-0">
+      <header className="flex items-center justify-between px-6 py-4 h-[50px] w-full gap-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex-shrink-0 relative z-40">
         <BreadcrumbHeader />
         {showOrgSelector && orgs.length > 0 && (
           <div className="flex-1 max-w-xs">

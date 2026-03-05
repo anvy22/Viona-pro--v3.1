@@ -16,6 +16,7 @@ import {
   Warehouse,
   MessageCircle,
   HardDrive,
+  LucideIcon,
 } from "lucide-react";
 import { Logo } from "./Logo";
 import Link from "next/link";
@@ -55,7 +56,7 @@ const SidebarLink = React.memo(function SidebarLink({
 }: {
   href: string;
   label: string;
-  icon: React.ComponentType<{ size: number; className?: string }>;
+  icon: LucideIcon;
   isActive: boolean;
   isCollapsed: boolean;
 }) {

@@ -20,9 +20,6 @@ export function WorkflowCard({ workflow, onUpdate, onDelete, canManage }: Workfl
       <Link href={`/workflows/${workflow.id}`} className="block">
         <div className="flex items-center justify-between gap-4">
           <h3 className="font-semibold">{workflow.name}</h3>
-          <div className="flex items-center gap-3 left-2">
-            <Badge variant="secondary">{workflow.status}</Badge>
-          </div>
         </div>
 
         {workflow.description && (

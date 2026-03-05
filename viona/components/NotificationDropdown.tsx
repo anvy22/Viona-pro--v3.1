@@ -328,7 +328,7 @@ export function NotificationDropdown() {
 
       {/* Dropdown */}
       {isOpen && (
-        <Card className="absolute top-full right-0 mt-2 w-[400px] rounded-lg shadow-xl border bg-background z-50">
+        <Card className="absolute top-full right-0 mt-2 w-[400px] rounded-lg shadow-xl border bg-background z-[100]">
           <CardHeader className="border-b py-4 px-5 flex justify-between">
             <div className="flex justify-between">
               <CardTitle className="text-lg font-semibold">Notifications</CardTitle>
