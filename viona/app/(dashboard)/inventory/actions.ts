@@ -267,6 +267,7 @@ export async function addProduct(
     price: number;
     image?: string | null;
     description?: string;
+    warehouseId?: string;
   }
 ) {
   const userId = await requireRole(orgId, ["writer", "read-write", "admin"]);
@@ -274,7 +275,21 @@ export async function addProduct(
   try {
     const bigOrgId = toBigInt(orgId);
     const user = await getOrCreateUser(userId);
-    const warehouse = await getOrCreateDefaultWarehouse(bigOrgId);
+
+    // Use the user-selected warehouse if provided, otherwise fall back to default
+    let warehouse;
+    if (productData.warehouseId) {
+      const selectedWarehouse = await prisma.warehouse.findFirst({
+        where: { warehouse_id: toBigInt(productData.warehouseId), org_id: bigOrgId },
+        select: { warehouse_id: true, name: true },
+      });
+      if (!selectedWarehouse) {
+        throw new Error('Selected warehouse not found in this organization');
+      }
+      warehouse = selectedWarehouse;
+    } else {
+      warehouse = await getOrCreateDefaultWarehouse(bigOrgId);
+    }
 
     const org = await prisma.organization.findUnique({
       where: { org_id: bigOrgId },
@@ -322,7 +337,7 @@ export async function addProduct(
       message: `Product "${product.name}" (SKU: ${product.sku}) has been added to inventory`,
       type: "system",
       priority: "MEDIUM",
-      link: `/inventory/${orgId}`,
+      link: `/inventory/${product.product_id}`,
     });
 
     // Managers/admins notification
@@ -342,7 +357,7 @@ export async function addProduct(
         message: `"${product.name}" (SKU: ${product.sku}) was added to "${org?.name}" inventory`,
         type: "system",
         priority: "LOW",
-        link: `/inventory/${orgId}`,
+        link: `/inventory/${product.product_id}`,
       }
     );
 
