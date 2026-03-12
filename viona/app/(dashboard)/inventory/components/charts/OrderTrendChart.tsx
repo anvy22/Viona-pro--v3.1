@@ -37,7 +37,7 @@ function OrderTrendChart({ data }: { data: Order[] }) {
         <Tooltip />
         <Legend />
         <Bar yAxisId="quantity" dataKey="quantity" fill="#8884d8" name="Quantity Sold" />
-        <Line yAxisId="revenue" type="monotone" dataKey="revenue" stroke="#ff7300" strokeWidth={2} name="Revenue (₹)" />
+        <Line yAxisId="revenue" type="monotone" dataKey="revenue" stroke="#ff7300" strokeWidth={2} name="Revenue ($)" />
       </ComposedChart>
     </ResponsiveContainer>
   );

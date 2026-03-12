@@ -234,7 +234,7 @@ function EditProductDialogComponent({ open, onOpenChange, onSave, initialData }:
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="price">Retail Price * (₹)</Label>
+                  <Label htmlFor="price">Retail Price * ($)</Label>
                   <Input
                     id="price"
                     type="number"
@@ -249,7 +249,7 @@ function EditProductDialogComponent({ open, onOpenChange, onSave, initialData }:
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="actualPrice">Actual Cost (₹)</Label>
+                  <Label htmlFor="actualPrice">Actual Cost ($)</Label>
                   <Input
                     id="actualPrice"
                     type="number"
@@ -263,7 +263,7 @@ function EditProductDialogComponent({ open, onOpenChange, onSave, initialData }:
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="marketPrice">Market Price (₹)</Label>
+                  <Label htmlFor="marketPrice">Market Price ($)</Label>
                   <Input
                     id="marketPrice"
                     type="number"

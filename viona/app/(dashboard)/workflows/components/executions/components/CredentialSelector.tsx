@@ -41,6 +41,7 @@ export function CredentialSelector({
             case "OPENAI": return <img src="/logos/openai.svg" alt="OpenAI" className="w-4 h-4" />;
             case "GEMINI": return <img src="/logos/gemini.svg" alt="Gemini" className="w-4 h-4" />;
             case "ANTHROPIC": return <img src="/logos/anthropic.svg" alt="Anthropic" className="w-4 h-4" />;
+            case "GROQ": return <img src="/logos/groq.svg" alt="Groq" className="w-4 h-4" />;
             default: return <KeyRound className="w-4 h-4" />;
         }
     };
@@ -50,6 +51,7 @@ export function CredentialSelector({
             case "OPENAI": return <img src="/logos/openai.svg" alt="OpenAI" className="w-3.5 h-3.5" />;
             case "GEMINI": return <img src="/logos/gemini.svg" alt="Gemini" className="w-3.5 h-3.5" />;
             case "ANTHROPIC": return <img src="/logos/anthropic.svg" alt="Anthropic" className="w-3.5 h-3.5" />;
+            case "GROQ": return <img src="/logos/groq.svg" alt="Groq" className="w-3.5 h-3.5" />;
             default: return <KeyRound className="w-3.5 h-3.5" />;
         }
     };

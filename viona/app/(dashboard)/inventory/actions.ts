@@ -8,7 +8,7 @@ import { revalidatePath, revalidateTag, unstable_cache } from "next/cache";
 import { CacheService } from "@/lib/cache";
 import { sendNotification } from "@/lib/rabbitmq";
 import { emitInventoryEvent } from "@/lib/workflow-events";
-import type { Product } from "../api/inventory/products/route";
+import type { Product } from "../../api/inventory/products/route";
 
 function toBigInt(id: string) {
   try {
@@ -270,7 +270,7 @@ export async function addProduct(
     warehouseId?: string;
   }
 ) {
-  const userId = await requireRole(orgId, ["writer", "read-write", "admin"]);
+  const userId = await requireRole(orgId, ["admin", "manager", "employee"]);
 
   try {
     const bigOrgId = toBigInt(orgId);
@@ -399,7 +399,7 @@ export async function updateProduct(
     description?: string;
   }
 ) {
-  const userId = await requireRole(orgId, ["writer", "read-write", "admin"]);
+  const userId = await requireRole(orgId, ["admin", "manager", "employee"]);
 
   try {
     const bigOrgId = toBigInt(orgId);
@@ -522,7 +522,7 @@ export async function updateProduct(
 }
 
 export async function deleteProduct(orgId: string, productId: string) {
-  const userId = await requireRole(orgId, ["writer", "read-write", "admin"]);
+  const userId = await requireRole(orgId, ["admin", "manager", "employee"]);
 
   try {
     const bigOrgId = toBigInt(orgId);
@@ -617,7 +617,7 @@ export async function bulkUpdateProducts(
   orgId: string,
   updates: { id: string; data: Omit<Product, "id" | "createdAt" | "updatedAt"> }[]
 ) {
-  const userId = await requireRole(orgId, ["writer", "read-write", "admin"]);
+  const userId = await requireRole(orgId, ["admin", "manager", "employee"]);
   if (!updates || updates.length === 0) throw new Error("No updates provided");
 
   try {
@@ -758,7 +758,7 @@ export async function warmupProductCache(orgId: string) {
   try {
     await ensureOrganizationMember(orgId);
     const role = await getUserRole(orgId);
-    if (!await hasPermission(role, ["reader", "writer", "read-write", "admin"])) {
+    if (!await hasPermission(role, ["admin", "manager", "employee"])) {
       throw new Error("Insufficient permissions to access products");
     }
 

@@ -6,8 +6,7 @@ import { AiAgentDialog, type AiAgentFormValues } from "./dialog";
 import { useNodeStatus } from "@/app/(dashboard)/workflows/components/executions/hooks/use-node-status";
 import { BaseHandle } from "@/components/react-flow/base-handle";
 import { WorkflowNode } from "@/components/workflow-node";
-import { type NodeStatus, NodeStatusIndicator } from "@/components/react-flow/node-status-indicator";
-import { Bot, MessageSquare, BrainCircuit, Wrench, CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { Bot,CheckCircle2, Loader2, XCircle } from "lucide-react";
 
 type AiAgentNodeData = {
     variableName?: string;
@@ -72,75 +71,69 @@ export const AiAgentNode = memo((props: NodeProps<AiAgentNodeType>) => {
                     className="ai-agent-node group"
                     onDoubleClick={handleOpenSettings}
                     tabIndex={0}
+                    data-status={nodeStatus}
                 >
-                    {/* ─── Gradient accent bar ─── */}
-                    <div className="ai-agent-node__accent" />
-
-                    {/* ─── Main content ─── */}
+                
                     <div className="ai-agent-node__body">
-                        {/* Header row */}
-                        <div className="ai-agent-node__header">
-                            <div className="ai-agent-node__icon-wrapper">
-                                <Bot className="size-4 text-violet-600 dark:text-violet-400" />
-                            </div>
-                            <div className="ai-agent-node__title-group">
-                                <span className="ai-agent-node__title">AI Agent</span>
-                                <span className="ai-agent-node__desc">{description}</span>
-                            </div>
-                            {/* Status indicator */}
-                            {nodeStatus === "loading" && (
-                                <Loader2 className="size-3.5 text-blue-500 animate-spin ml-auto shrink-0" />
-                            )}
-                            {nodeStatus === "success" && (
-                                <CheckCircle2 className="size-3.5 text-emerald-500 ml-auto shrink-0" />
-                            )}
-                            {nodeStatus === "error" && (
-                                <XCircle className="size-3.5 text-red-500 ml-auto shrink-0" />
-                            )}
+                        <div >
+                            <Bot className="size-6 " strokeWidth={1.5} />
                         </div>
-
-                        {/* ─── Sub-node slots ─── */}
-                        <div className="ai-agent-node__slots">
-                            <div className="ai-agent-node__slot">
-                                <span className="ai-agent-node__slot-label">Model</span>
-                                <BaseHandle
-                                    position={Position.Bottom}
-                                    type="target"
-                                    id="chat-model-target"
-                                    className="!absolute !-bottom-[7px] !left-1/2 !-translate-x-1/2 !w-[9px] !h-[9px] !rounded-full !border-2 !border-violet-400 dark:!border-violet-500 !bg-card"
-                                />
-                            </div>
-                            <div className="ai-agent-node__slot">
-                                <span className="ai-agent-node__slot-label">Memory</span>
-                                <BaseHandle
-                                    position={Position.Bottom}
-                                    type="target"
-                                    id="memory-target"
-                                    className="!absolute !-bottom-[7px] !left-1/2 !-translate-x-1/2 !w-[9px] !h-[9px] !rounded-full !border-2 !border-blue-400 dark:!border-blue-500 !bg-card"
-                                />
-                            </div>
-                            <div className="ai-agent-node__slot">
-                                <span className="ai-agent-node__slot-label">Tools</span>
-                                <BaseHandle
-                                    position={Position.Bottom}
-                                    type="target"
-                                    id="tool-target"
-                                    className="!absolute !-bottom-[7px] !left-1/2 !-translate-x-1/2 !w-[9px] !h-[9px] !rounded-full !border-2 !border-amber-400 dark:!border-amber-500 !bg-card"
-                                />
-                            </div>
+                        <div className="ai-agent-node__title-group">
+                            <span className="ai-agent-node__title">AI Agent</span>
+                            <span className="ai-agent-node__desc">Tools Agent</span>
                         </div>
+                   
+                        {nodeStatus === "loading" && (
+                            <Loader2 className="size-4 text-blue-500 animate-spin absolute top-3 right-3" />
+                        )}
+                        {nodeStatus === "success" && (
+                            <CheckCircle2 className="size-4 text-emerald-500 absolute top-3 right-3" />
+                        )}
+                        {nodeStatus === "error" && (
+                            <XCircle className="size-4 text-red-500 absolute top-3 right-3" />
+                        )}
                     </div>
 
-                    {/* ─── Main flow handles ─── */}
+                    
+                    <BaseHandle
+                        position={Position.Bottom}
+                        type="target"
+                        id="chat-model-target"
+                        className="ai-agent-node__diamond-handle"
+                        style={{ left: '25%' }}
+                    />
+                    <span className="ai-agent-node__handle-label" style={{ left: '20%' }}>Chat Model</span>
+
+                    <BaseHandle
+                        position={Position.Bottom}
+                        type="target"
+                        id="memory-target"
+                        className="ai-agent-node__diamond-handle"
+                        style={{ left: '50%' }}
+                    />
+                    <span className="ai-agent-node__handle-label" style={{ left: '50%' }}>Memory</span>
+
+                    <BaseHandle
+                        position={Position.Bottom}
+                        type="target"
+                        id="tool-target"
+                        className="ai-agent-node__diamond-handle"
+                        style={{ left: '75%' }}
+                    />
+                    <span className="ai-agent-node__handle-label" style={{ left: '75%' }}>Tool</span>
+
+                    
                     <BaseHandle
                         position={Position.Left}
                         type="target"
                         id="target-1"
+                        className="ai-agent-node__left-handle"
                     />
                     <BaseHandle
                         position={Position.Right}
                         type="source"
                         id="source-1"
+                        className="ai-agent-node__right-handle"
                     />
                 </div>
             </WorkflowNode>

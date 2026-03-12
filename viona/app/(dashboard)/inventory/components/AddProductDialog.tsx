@@ -373,7 +373,7 @@ export function AddProductDialog({
 
               <div className="grid gap-2">
                 <Label htmlFor="price">
-                  Price (₹) <span className="text-destructive">*</span>
+                  Price ($) <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="price"

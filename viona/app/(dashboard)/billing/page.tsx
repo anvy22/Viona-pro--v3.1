@@ -6,6 +6,7 @@ import { useOrgStore } from "@/hooks/useOrgStore";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { OrganizationSelector } from "@/app/(dashboard)/organization/components/OrganizationSelector";
+import { OrganizationState } from "@/components/OrganizationState";
 import { PricingCard } from "./components/PricingCard";
 import { UsageOverview } from "./components/UsageOverview";
 import { CurrentPlanBanner } from "./components/CurrentPlanBanner";
@@ -111,37 +112,15 @@ function BillingPageContent() {
     }
   };
 
-  if (orgs.length === 0) {
+  if (orgs.length === 0 || !selectedOrgId) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <Card className="p-8 text-center max-w-md shadow-sm border">
-          <h2 className="text-xl font-semibold">No Organization Found</h2>
-          <p className="text-muted-foreground mt-2 mb-6">
-            Create or join an organization to manage billing.
-          </p>
-          <Button onClick={() => router.push("/organization")}>
-            Go to Organizations
-          </Button>
-        </Card>
-      </div>
-    );
-  }
-
-  if (!selectedOrgId) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <Card className="p-8 text-center max-w-sm shadow-sm border space-y-4">
-          <h2 className="text-xl font-semibold">Select Organization</h2>
-          <p className="text-sm text-muted-foreground">
-            Select an organization to view billing.
-          </p>
-          <OrganizationSelector
-            organizations={orgs}
-            selectedOrgId={selectedOrgId}
-            onOrganizationSelect={(id) => setSelectedOrgId(id)}
-          />
-        </Card>
-      </div>
+      <OrganizationState 
+        hasOrganizations={orgs.length > 0} 
+        hasSelectedOrg={!!selectedOrgId}
+        orgs={orgs}
+        selectedOrgId={selectedOrgId}
+        onOrganizationSelect={setSelectedOrgId}
+      />
     );
   }
 

@@ -14,6 +14,7 @@ import { EmptyState } from "./components/EmptyState";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { ErrorAlert } from "./components/ErrorAlert";
 import { createWarehouse, ensureDefaultWarehouse } from "./actions";
+import { OrganizationState } from "@/components/OrganizationState";
 
 export default function WarehousePage() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
@@ -106,32 +107,15 @@ export default function WarehousePage() {
     }
   };
 
-  if (orgs.length === 0) {
+  if (orgs.length === 0 || !selectedOrgId) {
     return (
-      <div className="flex-1 flex items-center justify-center p-4">
-        <Card className="p-8 text-center max-w-md">
-          <h2 className="text-xl font-semibold mb-2">No Organization Found</h2>
-          <p className="text-muted-foreground mb-4">
-            You need to create or join an organization to manage warehouses.
-          </p>
-          <Button onClick={() => window.location.href = '/organization'}>
-            Create Organization
-          </Button>
-        </Card>
-      </div>
-    );
-  }
-
-  if (!selectedOrgId) {
-    return (
-      <div className="flex-1 flex items-center justify-center p-4">
-        <Card className="p-8 text-center max-w-md">
-          <h2 className="text-xl font-semibold mb-2">Select Organization</h2>
-          <p className="text-muted-foreground">
-            Please select an organization to view and manage warehouses.
-          </p>
-        </Card>
-      </div>
+      <OrganizationState 
+        hasOrganizations={orgs.length > 0} 
+        hasSelectedOrg={!!selectedOrgId}
+        orgs={orgs}
+        selectedOrgId={selectedOrgId}
+        onOrganizationSelect={selectOrganization}
+      />
     );
   }
 

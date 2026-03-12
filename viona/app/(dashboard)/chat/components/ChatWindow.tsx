@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useAuth } from "@clerk/nextjs";
-import { useSelectedOrg } from "@/hooks/useOrgStore";
+import { useOrgStore } from "@/hooks/useOrgStore";
+import { OrganizationState } from "@/components/OrganizationState";
 import ChatMessage from "./ChatMessages";
 import ChatInput from "./ChatInput";
 import type { ChatMessage as Message, AgentOutput } from "../types";
@@ -33,11 +34,13 @@ const AI_AGENT_WS_URL = process.env.NEXT_PUBLIC_AI_AGENT_WS_URL || "ws://localho
 interface ChatWindowProps {
     chatId: string;
     onNewChat?: () => void;
+    onSessionCreated?: (sessionId: string) => void;
+    onSelectSession?: (sessionId: string) => void;
 }
 
-export default function ChatWindow({ chatId, onNewChat }: ChatWindowProps) {
+export default function ChatWindow({ chatId, onNewChat, onSessionCreated, onSelectSession }: ChatWindowProps) {
     const { getToken } = useAuth();
-    const selectedOrgId = useSelectedOrg();
+    const { selectedOrgId, orgs, setSelectedOrgId } = useOrgStore();
 
     const [messages, setMessages] = useState<Message[]>([]);
     const [streamingContent, setStreamingContent] = useState<string>("");
@@ -46,39 +49,45 @@ export default function ChatWindow({ chatId, onNewChat }: ChatWindowProps) {
     const [error, setError] = useState<string | null>(null);
     const [showHistory, setShowHistory] = useState(false);
 
-    // Session state - persist in sessionStorage to avoid creating new sessions on page revisit
-    const [currentSessionId, setCurrentSessionId] = useState<string | null>(() => {
-        if (typeof window !== 'undefined') {
-            return sessionStorage.getItem('chat_session_id');
-        }
-        return null;
-    });
+    // Session state — derived from chatId prop (URL is source of truth)
+    const isNewChat = chatId === "new";
     const [sessions, setSessions] = useState<ChatSession[]>([]);
     const [loadingSessions, setLoadingSessions] = useState(false);
+    const [loadingMessages, setLoadingMessages] = useState(false);
 
     const wsRef = useRef<WebSocket | null>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
-    const currentSessionIdRef = useRef<string | null>(
-        typeof window !== 'undefined' ? sessionStorage.getItem('chat_session_id') : null
-    );
     const streamingMessageIdRef = useRef<string | null>(null);
     const tokenRef = useRef<string | null>(null);
-    const hasInitializedRef = useRef(false);
     const selectedOrgIdRef = useRef(selectedOrgId);
+    const chatIdRef = useRef(chatId);
+    const hasUrlUpdatedRef = useRef(false);
+    const intentionalCloseRef = useRef(false);
 
-    // Keep ref in sync with state
+    // Keep refs in sync
     useEffect(() => {
         selectedOrgIdRef.current = selectedOrgId;
     }, [selectedOrgId]);
 
-    // Smart scroll - only auto-scroll if user is near the bottom
+    useEffect(() => {
+        chatIdRef.current = chatId;
+        hasUrlUpdatedRef.current = false;
+    }, [chatId]);
+
+    // Store getToken in a ref to avoid dependency issues
+    const getTokenRef = useRef(getToken);
+    useEffect(() => {
+        getTokenRef.current = getToken;
+    }, [getToken]);
+
+    // Smart scroll — only auto-scroll if user is near the bottom
     const scrollToBottomIfNeeded = useCallback(() => {
         const container = messagesContainerRef.current;
         if (!container) return;
 
-        const threshold = 150; // pixels from bottom
+        const threshold = 150;
         const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
 
         if (isNearBottom) {
@@ -86,7 +95,6 @@ export default function ChatWindow({ chatId, onNewChat }: ChatWindowProps) {
         }
     }, []);
 
-    // Scroll on new messages only if near bottom
     useEffect(() => {
         scrollToBottomIfNeeded();
     }, [messages, streamingContent, scrollToBottomIfNeeded]);
@@ -110,50 +118,30 @@ export default function ChatWindow({ chatId, onNewChat }: ChatWindowProps) {
         }
     }, [getToken, selectedOrgId]);
 
-    // Load sessions when sidebar opens
     useEffect(() => {
         if (showHistory) {
             loadSessions();
         }
     }, [showHistory, loadSessions]);
 
-    // Persist session ID to sessionStorage
-    const persistSessionId = (sessionId: string) => {
-        if (typeof window !== 'undefined') {
-            sessionStorage.setItem('chat_session_id', sessionId);
-        }
-        setCurrentSessionId(sessionId);
-        currentSessionIdRef.current = sessionId;
-    };
-
-    // Clear session from storage (for new chat)
-    const clearPersistedSession = () => {
-        if (typeof window !== 'undefined') {
-            sessionStorage.removeItem('chat_session_id');
-        }
-        setCurrentSessionId(null);
-        currentSessionIdRef.current = null;
-    };
-
     // Handle incoming WebSocket messages
-    const handleWSMessage = (data: WSMessage) => {
+    const handleWSMessage = useCallback((data: WSMessage) => {
         switch (data.type) {
             case "connected":
-                // Store session_id from server and persist it
-                if (data.session_id) {
-                    persistSessionId(data.session_id);
+                // If this is a new chat, update URL to the server-assigned session
+                if (data.session_id && chatIdRef.current === "new" && !hasUrlUpdatedRef.current) {
+                    hasUrlUpdatedRef.current = true;
+                    onSessionCreated?.(data.session_id);
                 }
                 break;
 
             case "stream":
-                // Append streaming text
                 if (data.delta) {
                     setStreamingContent(prev => prev + data.delta);
                 }
                 break;
 
             case "tool_update":
-                // Show tool status in streaming
                 if (data.status === "running") {
                     setStreamingContent(`Analyzing ${data.tool?.replace(/_/g, " ")}...`);
                 }
@@ -174,9 +162,10 @@ export default function ChatWindow({ chatId, onNewChat }: ChatWindowProps) {
                         }
                     ]);
                 }
-                // Update session_id if provided and persist it
-                if (data.session_id) {
-                    persistSessionId(data.session_id);
+                // If URL still shows "new", update it
+                if (data.session_id && chatIdRef.current === "new" && !hasUrlUpdatedRef.current) {
+                    hasUrlUpdatedRef.current = true;
+                    onSessionCreated?.(data.session_id);
                 }
                 streamingMessageIdRef.current = null;
                 break;
@@ -194,58 +183,31 @@ export default function ChatWindow({ chatId, onNewChat }: ChatWindowProps) {
                 ]);
                 break;
         }
-    };
+    }, [onSessionCreated]);
 
-    // Load existing session if we have a persisted one
-    const loadExistingSession = async (sessionId: string, token: string) => {
-        if (!selectedOrgIdRef.current) return;
-
-        try {
-            const detail = await fetchSession(token, selectedOrgIdRef.current, sessionId);
-
-            // Convert to Message type
-            const loadedMessages: Message[] = detail.messages.map((m, i) => ({
-                id: `${sessionId}-${i}`,
-                role: m.role as "user" | "assistant",
-                content: m.content,
-                agentOutput: m.agent_output as AgentOutput | undefined
-            }));
-
-            setMessages(loadedMessages);
-        } catch (err) {
-            console.error("Failed to load existing session:", err);
-            // Session might be invalid, clear it
-            clearPersistedSession();
-        }
-    };
-
-    // Connect to WebSocket - standalone function, not useCallback
-    const connectWebSocket = async (token: string, sessionId?: string) => {
+    // Connect to WebSocket
+    const connectWebSocket = useCallback(async (token: string, sessionId?: string) => {
         if (!selectedOrgIdRef.current) return;
 
         if (wsRef.current) {
+            intentionalCloseRef.current = true;
             wsRef.current.close();
         }
 
-        // Use provided sessionId, or fall back to stored session
-        const sessionToUse = sessionId ?? currentSessionIdRef.current;
+        // Reset the flag for the new connection
+        intentionalCloseRef.current = false;
 
-        // Include session_id in connection if we have one
         let wsUrl = `${AI_AGENT_WS_URL}/ws/chat?token=${token}&org_id=${selectedOrgIdRef.current}`;
-        if (sessionToUse) {
-            wsUrl += `&session_id=${sessionToUse}`;
+        if (sessionId && sessionId !== "new") {
+            wsUrl += `&session_id=${sessionId}`;
         }
 
         const ws = new WebSocket(wsUrl);
-
-        // Ping interval to keep connection alive
         let pingInterval: NodeJS.Timeout | null = null;
 
         ws.onopen = () => {
             setIsConnected(true);
             setError(null);
-
-            // Start ping keepalive every 3 seconds
             pingInterval = setInterval(() => {
                 if (ws.readyState === WebSocket.OPEN) {
                     ws.send(JSON.stringify({ type: "ping" }));
@@ -255,7 +217,6 @@ export default function ChatWindow({ chatId, onNewChat }: ChatWindowProps) {
 
         ws.onmessage = (event) => {
             const data: WSMessage = JSON.parse(event.data);
-            // Ignore pong messages
             if ((data as any).type === "pong") return;
             handleWSMessage(data);
         };
@@ -270,14 +231,18 @@ export default function ChatWindow({ chatId, onNewChat }: ChatWindowProps) {
             setIsConnected(false);
             if (pingInterval) clearInterval(pingInterval);
 
-            // Reconnect after 3 seconds, always using a FRESH token
+            // Only auto-reconnect on unexpected disconnects, not intentional closes
+            if (intentionalCloseRef.current) return;
+
+            // Reconnect after 3 seconds with fresh token
             reconnectTimeoutRef.current = setTimeout(async () => {
                 if (!selectedOrgIdRef.current) return;
                 try {
                     const freshToken = await getTokenRef.current();
                     if (freshToken) {
                         tokenRef.current = freshToken;
-                        await connectWebSocket(freshToken, currentSessionIdRef.current || undefined);
+                        const sessionForReconnect = chatIdRef.current === "new" ? undefined : chatIdRef.current;
+                        await connectWebSocket(freshToken, sessionForReconnect);
                     }
                 } catch (err) {
                     console.error("Token refresh failed on reconnect:", err);
@@ -286,20 +251,11 @@ export default function ChatWindow({ chatId, onNewChat }: ChatWindowProps) {
         };
 
         wsRef.current = ws;
-    };
+    }, [handleWSMessage]);
 
-    // Store getToken in a ref to avoid dependency issues
-    const getTokenRef = useRef(getToken);
+    // Initialize/re-initialize when chatId changes
     useEffect(() => {
-        getTokenRef.current = getToken;
-    }, [getToken]);
-
-    // Initialize on mount - only runs once when selectedOrgId is available
-    useEffect(() => {
-        if (hasInitializedRef.current) return;
         if (!selectedOrgId) return;
-
-        hasInitializedRef.current = true;
 
         const initializeChat = async () => {
             try {
@@ -308,16 +264,50 @@ export default function ChatWindow({ chatId, onNewChat }: ChatWindowProps) {
                     setError("Authentication required");
                     return;
                 }
-
                 tokenRef.current = token;
 
-                // If we have a persisted session, load its messages first
-                if (currentSessionIdRef.current) {
-                    await loadExistingSession(currentSessionIdRef.current, token);
+                // Clear previous state
+                setMessages([]);
+                setStreamingContent("");
+                setError(null);
+                setIsLoading(false);
+
+                // Clear reconnect timeout
+                if (reconnectTimeoutRef.current) {
+                    clearTimeout(reconnectTimeoutRef.current);
                 }
 
-                // Then connect (will use persisted session if available)
-                await connectWebSocket(token);
+                // Close existing WS intentionally
+                if (wsRef.current) {
+                    intentionalCloseRef.current = true;
+                    wsRef.current.close();
+                    wsRef.current = null;
+                }
+
+                if (isNewChat) {
+                    // New chat — connect without session ID, backend will create one
+                    await connectWebSocket(token, undefined);
+                } else {
+                    // Existing session — load messages then connect
+                    setLoadingMessages(true);
+                    try {
+                        const detail = await fetchSession(token, selectedOrgId, chatId);
+                        const loadedMessages: Message[] = detail.messages.map((m, i) => ({
+                            id: `${chatId}-${i}`,
+                            role: m.role as "user" | "assistant",
+                            content: m.content,
+                            agentOutput: m.agent_output as AgentOutput | undefined
+                        }));
+                        setMessages(loadedMessages);
+                    } catch (err) {
+                        console.error("Failed to load session:", err);
+                        setError("Failed to load chat session");
+                    } finally {
+                        setLoadingMessages(false);
+                    }
+
+                    await connectWebSocket(token, chatId);
+                }
             } catch (err) {
                 console.error("Failed to initialize chat:", err);
                 setError("Failed to connect");
@@ -330,13 +320,13 @@ export default function ChatWindow({ chatId, onNewChat }: ChatWindowProps) {
             if (reconnectTimeoutRef.current) {
                 clearTimeout(reconnectTimeoutRef.current);
             }
+            intentionalCloseRef.current = true;
             if (wsRef.current) {
                 wsRef.current.close();
                 wsRef.current = null;
             }
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedOrgId]);
+    }, [chatId, selectedOrgId, isNewChat, connectWebSocket]);
 
     // Handle sending messages
     const handleSend = (content: string) => {
@@ -345,7 +335,6 @@ export default function ChatWindow({ chatId, onNewChat }: ChatWindowProps) {
             return;
         }
 
-        // Add user message
         const userMessage: Message = {
             id: crypto.randomUUID(),
             role: "user",
@@ -356,91 +345,24 @@ export default function ChatWindow({ chatId, onNewChat }: ChatWindowProps) {
         setStreamingContent("");
         streamingMessageIdRef.current = crypto.randomUUID();
 
-        // Send to server with session_id
+        // Send to server — use chatId as session_id (unless "new")
         wsRef.current.send(JSON.stringify({
             type: "message",
             content,
-            session_id: currentSessionId,
+            session_id: isNewChat ? undefined : chatId,
             message_id: streamingMessageIdRef.current
         }));
     };
 
-    // Handle new chat - only this should create a new session
-    const handleNewChat = async () => {
-        setMessages([]);
-        setStreamingContent("");
-        setError(null);
-        clearPersistedSession();
-
-        // Clear reconnect timeout to prevent old session reconnection
-        if (reconnectTimeoutRef.current) {
-            clearTimeout(reconnectTimeoutRef.current);
-        }
-
-        // Reconnect without session_id to get a new session  
-        if (wsRef.current) {
-            wsRef.current.close();
-            wsRef.current = null;
-        }
-
-        // Get fresh token and connect without session
-        try {
-            const token = await getToken();
-            if (token) {
-                tokenRef.current = token;
-                await connectWebSocket(token, undefined);
-            }
-        } catch (err) {
-            console.error("Failed to create new chat:", err);
-            setError("Failed to create new chat");
-        }
-
+    // Handle new chat
+    const handleNewChat = () => {
         onNewChat?.();
     };
 
     // Handle selecting a session from history
-    const handleSelectSession = async (session: ChatSession) => {
-        if (!selectedOrgId) return;
-
-        try {
-            // Get fresh token
-            const token = await getToken();
-            if (!token) {
-                setError("Authentication required");
-                return;
-            }
-            tokenRef.current = token;
-
-            // Load the session messages
-            const detail = await fetchSession(token, selectedOrgId, session.id);
-
-            // Convert to Message type
-            const loadedMessages: Message[] = detail.messages.map((m, i) => ({
-                id: `${session.id}-${i}`,
-                role: m.role as "user" | "assistant",
-                content: m.content,
-                agentOutput: m.agent_output as AgentOutput | undefined
-            }));
-
-            setMessages(loadedMessages);
-            persistSessionId(session.id);
-            setShowHistory(false);
-
-            // Clear reconnect timeout
-            if (reconnectTimeoutRef.current) {
-                clearTimeout(reconnectTimeoutRef.current);
-            }
-
-            // Reconnect with this session
-            if (wsRef.current) {
-                wsRef.current.close();
-                wsRef.current = null;
-            }
-            await connectWebSocket(token, session.id);
-        } catch (err) {
-            console.error("Failed to load session:", err);
-            setError("Failed to load session");
-        }
+    const handleSelectSession = (session: ChatSession) => {
+        setShowHistory(false);
+        onSelectSession?.(session.id);
     };
 
     // Handle deleting a session
@@ -453,7 +375,7 @@ export default function ChatWindow({ chatId, onNewChat }: ChatWindowProps) {
             setSessions(prev => prev.filter(s => s.id !== sessionId));
 
             // If we deleted the current session, start a new one
-            if (sessionId === currentSessionId) {
+            if (sessionId === chatId) {
                 handleNewChat();
             }
         } catch (err) {
@@ -474,6 +396,20 @@ export default function ChatWindow({ chatId, onNewChat }: ChatWindowProps) {
         return date.toLocaleDateString();
     };
 
+    if (orgs.length === 0 || !selectedOrgId) {
+        return (
+            <div className="flex flex-1 min-h-0 relative">
+                <OrganizationState 
+                    hasOrganizations={orgs.length > 0} 
+                    hasSelectedOrg={!!selectedOrgId}
+                    orgs={orgs}
+                    selectedOrgId={selectedOrgId}
+                    onOrganizationSelect={setSelectedOrgId}
+                />
+            </div>
+        );
+    }
+
     return (
         <div className="flex flex-1 min-h-0 relative">
             {/* Main chat area */}
@@ -488,7 +424,6 @@ export default function ChatWindow({ chatId, onNewChat }: ChatWindowProps) {
                         New Chat
                     </button>
 
-                    {/* History button */}
                     <button
                         onClick={() => setShowHistory(!showHistory)}
                         className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-lg hover:bg-muted/50 ${showHistory ? 'text-foreground bg-muted/50' : 'text-muted-foreground hover:text-foreground'
@@ -506,11 +441,18 @@ export default function ChatWindow({ chatId, onNewChat }: ChatWindowProps) {
                     </div>
                 )}
 
-                {/* Messages area - clean, no boxed panels */}
+                {/* Messages area */}
                 <div ref={messagesContainerRef} className="flex-1 overflow-y-auto">
                     <div className="max-w-3xl mx-auto px-6 py-8 space-y-6">
+                        {/* Loading messages state */}
+                        {loadingMessages && (
+                            <div className="flex items-center justify-center py-20">
+                                <div className="w-6 h-6 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+                            </div>
+                        )}
+
                         {/* Empty state */}
-                        {messages.length === 0 && !streamingContent && (
+                        {!loadingMessages && messages.length === 0 && !streamingContent && (
                             <div className="text-center py-20">
                                 <h2 className="text-2xl font-semibold text-foreground mb-2">
                                     How can I help you today?
@@ -553,7 +495,7 @@ export default function ChatWindow({ chatId, onNewChat }: ChatWindowProps) {
                     </div>
                 </div>
 
-                {/* Input area - subtle separator only */}
+                {/* Input area */}
                 <div className="border-t border-border/30">
                     <div className="max-w-3xl mx-auto px-6 py-4">
                         <ChatInput
@@ -599,7 +541,7 @@ export default function ChatWindow({ chatId, onNewChat }: ChatWindowProps) {
                                     <div
                                         key={session.id}
                                         onClick={() => handleSelectSession(session)}
-                                        className={`group p-3 rounded-lg cursor-pointer transition-colors ${session.id === currentSessionId
+                                        className={`group p-3 rounded-lg cursor-pointer transition-colors ${session.id === chatId && !isNewChat
                                             ? 'bg-muted'
                                             : 'hover:bg-muted/50'
                                             }`}

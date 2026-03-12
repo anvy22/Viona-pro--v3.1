@@ -3,6 +3,7 @@ import Handlebars from "handlebars";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
+import { createGroq } from "@ai-sdk/groq";
 import { generateText, tool, stepCountIs } from "ai";
 import prisma from "@/lib/prisma";
 import { emitOrderEvent } from "@/lib/workflow-events";
@@ -23,7 +24,7 @@ type AiAgentData = {
 };
 
 type ChatModelData = {
-    provider?: "gemini" | "openai" | "anthropic";
+    provider?: "gemini" | "openai" | "anthropic" | "groq";
     model?: string;
     credentialId?: string | null;
 };
@@ -45,6 +46,10 @@ function createModelInstance(provider: string, model: string, apiKey: string) {
         case "anthropic": {
             const anthropic = createAnthropic({ apiKey });
             return anthropic(model || "claude-sonnet-4-5");
+        }
+        case "groq": {
+            const groq = createGroq({ apiKey });
+            return groq(model || "llama3-8b-8192");
         }
         case "gemini":
         default: {

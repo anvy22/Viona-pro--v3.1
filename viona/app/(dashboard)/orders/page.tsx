@@ -10,6 +10,7 @@ import { AddOrderDialog } from "./components/AddOrderDialog";
 import { OrderFilters, FilterState } from "./components/OrderFilters";
 import { OrderStats } from "./components/OrderStats";
 import { EmptyState } from "./components/EmptyState";
+import { OrganizationState } from "@/components/OrganizationState";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { Pagination } from "@/components/Pagination";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -259,32 +260,17 @@ export default function OrdersPage() {
     URL.revokeObjectURL(url);
   };
 
-  if (orgs.length === 0) {
+  if (orgs.length === 0 || !selectedOrgId) {
     return (
-      <div className="flex-1 flex items-center justify-center p-4">
-        <Card className="p-8 text-center max-w-md">
-          <h2 className="text-xl font-semibold mb-2">No Organization Found</h2>
-          <p className="text-muted-foreground mb-4">
-            You need to create or join an organization to manage orders.
-          </p>
-          <Button onClick={() => window.location.href = '/organization'}>
-            Create Organization
-          </Button>
-        </Card>
-      </div>
-    );
-  }
-
-  if (!selectedOrgId) {
-    return (
-      <div className="flex-1 flex items-center justify-center p-4">
-        <Card className="p-8 text-center max-w-md">
-          <h2 className="text-xl font-semibold mb-2">Select Organization</h2>
-          <p className="text-muted-foreground">
-            Please select an organization to view and manage orders.
-          </p>
-        </Card>
-      </div>
+      <OrganizationState 
+        hasOrganizations={orgs.length > 0} 
+        hasSelectedOrg={!!selectedOrgId}
+        orgs={orgs}
+        selectedOrgId={selectedOrgId}
+        onOrganizationSelect={setSelectedOrgId}
+        noOrgDescription="You need to create or join an organization to manage orders."
+        selectOrgDescription="Please select an organization to view and manage orders."
+      />
     );
   }
 

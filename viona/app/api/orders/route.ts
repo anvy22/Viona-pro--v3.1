@@ -59,7 +59,7 @@ export async function GET(request: Request) {
     const role = await getUserRole(orgId);
     console.log(`Orders API: User role in org ${orgId}: ${role}`);
     
-    if (!hasPermission(role, ['reader', 'writer', 'read-write', 'admin'])) {
+    if (!(await hasPermission(role, ['admin', 'manager', 'employee']))) {
       console.log(`Orders API: Permission denied for role: ${role}`);
       return NextResponse.json({ 
         error: 'Insufficient permissions',

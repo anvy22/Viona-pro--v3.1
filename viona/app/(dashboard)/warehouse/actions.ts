@@ -22,7 +22,7 @@ export async function createWarehouse(orgId: string, data: { name: string; addre
     await ensureOrganizationMember(orgId);
 
     const role = await getUserRole(orgId);
-    if (!hasPermission(role, ['writer', 'read-write', 'admin'])) {
+    if (!(await hasPermission(role, ['admin', 'manager']))) {
       throw new Error('Insufficient permissions to create warehouse');
     }
 
@@ -124,7 +124,7 @@ export async function updateWarehouse(
     await ensureOrganizationMember(orgId);
 
     const role = await getUserRole(orgId);
-    if (!hasPermission(role, ['writer', 'read-write', 'admin'])) {
+    if (!(await hasPermission(role, ['admin', 'manager']))) {
       throw new Error('Insufficient permissions to update warehouse');
     }
 
@@ -229,7 +229,7 @@ export async function deleteWarehouse(orgId: string, warehouseId: string) {
     await ensureOrganizationMember(orgId);
 
     const role = await getUserRole(orgId);
-    if (!hasPermission(role, ['admin'])) {
+    if (!(await hasPermission(role, ['admin']))) {
       throw new Error('Only admins can delete warehouses');
     }
 

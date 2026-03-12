@@ -34,7 +34,7 @@ function TableInner({ orders }: { orders: Order[] }) {
                 <td className="py-2 pr-4">{new Date(o.orderDate).toLocaleDateString()}</td>
                 <td className="py-2 pr-4">{o.customerName}</td>
                 <td className="py-2 pr-4">{o.quantity}</td>
-                <td className="py-2 pr-4">₹{o.priceAtOrder.toFixed(2)}</td>
+                <td className="py-2 pr-4">${o.priceAtOrder.toFixed(2)}</td>
                 <td className="py-2 pr-0 capitalize">{o.status}</td>
               </tr>
             ))}

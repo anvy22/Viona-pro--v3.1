@@ -13,6 +13,7 @@ import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { WorkflowCard } from "./components/WorkflowCard";
 import { CreateWorkflowModal } from "./components/CreateWorkflowModal";
 import { EmptyState } from "./components/EmptyState";
+import { OrganizationState } from "@/components/OrganizationState";
 
 export default function WorkflowsPage() {
     const [workflows, setWorkflows] = useState<WorkflowListItem[]>([]);
@@ -26,9 +27,11 @@ export default function WorkflowsPage() {
     const isRoleLoaded = role !== undefined;
 
     const isAdmin = role === "admin";
+    const isManager = role === "manager";
+    const canManageWorkflows = isAdmin || isManager;
 
-    const canView = isRoleLoaded;
-    const canCreate = isRoleLoaded && isAdmin;
+    const canView = isRoleLoaded && canManageWorkflows;
+    const canCreate = isRoleLoaded && canManageWorkflows;
 
     const selectOrganization = useCallback(
         (orgId: string | null) => setSelectedOrgId(orgId),
@@ -36,19 +39,21 @@ export default function WorkflowsPage() {
     );
 
     const fetchWorkflows = useCallback(
-        async (refresh = false) => {
+        async (refresh = false, silent = false) => {
             if (!selectedOrgId) return;
 
-            refresh ? setIsRefreshing(true) : setIsLoading(true);
+            if (!silent) {
+                refresh ? setIsRefreshing(true) : setIsLoading(true);
+            }
 
             try {
                 const data = await getWorkflowsForOrg(selectedOrgId);
                 setWorkflows(data as unknown as WorkflowListItem[]);
 
-                if (refresh) toast.success("Workflows refreshed");
+                if (refresh && !silent) toast.success("Workflows refreshed");
             } catch (error) {
                 console.error("Failed to load workflows:", error);
-                toast.error("Failed to load workflows");
+                if (!silent) toast.error("Failed to load workflows");
             } finally {
                 setIsLoading(false);
                 setIsRefreshing(false);
@@ -72,36 +77,30 @@ export default function WorkflowsPage() {
     });
 
 
-    if (orgs.length === 0) {
+    if (orgs.length === 0 || !selectedOrgId) {
+        return (
+            <OrganizationState 
+                hasOrganizations={orgs.length > 0} 
+                hasSelectedOrg={!!selectedOrgId}
+                orgs={orgs}
+                selectedOrgId={selectedOrgId}
+                onOrganizationSelect={setSelectedOrgId}
+            />
+        );
+    }
+
+    if (isRoleLoaded && !canView) {
         return (
             <div className="flex-1 flex items-center justify-center">
                 <Card className="p-8 text-center max-w-md">
-                    <h2 className="text-xl font-semibold">No Organization Found</h2>
+                    <h2 className="text-xl font-semibold">Access Denied</h2>
                     <p className="text-muted-foreground mt-2">
-                        Create or join an organization to manage workflows.
-                    </p>
-                    <Button className="mt-4" onClick={() => location.href = "/organization"}>
-                        Create Organization
-                    </Button>
-                </Card>
-            </div>
-        );
-    }
-
-    if (!selectedOrgId) {
-        return (
-            <div className="flex-1 flex items-center justify-center">
-                <Card className="p-8 text-center max-w-md">
-                    <h2 className="text-xl font-semibold">Select Organization</h2>
-                    <p className="text-muted-foreground">
-                        Choose an organization to view workflows.
+                        Only admins and managers can access workflows.
                     </p>
                 </Card>
             </div>
         );
     }
-
-
 
     return (
         <>
@@ -153,6 +152,7 @@ export default function WorkflowsPage() {
                                 workflow={w}
                                 onUpdate={fetchWorkflows}
                                 onDelete={fetchWorkflows}
+                                onStatusToggle={() => fetchWorkflows(false, true)}
                                 canManage={isAdmin}
                             />
                         ))}

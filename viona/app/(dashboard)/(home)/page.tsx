@@ -15,6 +15,7 @@ import { RecentOrders } from './components/RecentOrders';
 import { LowStockProducts } from './components/LowStockProducts';
 import { RevenueChart } from './components/RevenueChart';
 import { OrganizationSelector } from '@/app/(dashboard)/organization/components/OrganizationSelector';
+import { OrganizationState } from '@/components/OrganizationState';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
@@ -70,37 +71,15 @@ export default function DashboardPage() {
     };
   }, [selectedOrgId]);
 
-  if (orgs.length === 0) {
+  if (orgs.length === 0 || !selectedOrgId) {
     return (
-      <div className="flex flex-1 items-center justify-center p-6 h-[calc(100vh-100px)]">
-        <Card className="p-8 text-center max-w-md shadow-sm border">
-          <h2 className="text-xl font-semibold">Welcome to Viona!</h2>
-          <p className="text-muted-foreground mt-2 mb-6">
-            You need to create or join an organization to get started.
-          </p>
-          <Button onClick={() => router.push("/organization")}>
-            Go to Organizations
-          </Button>
-        </Card>
-      </div>
-    );
-  }
-
-  if (!selectedOrgId) {
-    return (
-      <div className="flex flex-1 items-center justify-center p-6 h-[calc(100vh-100px)]">
-        <Card className="p-8 text-center max-w-sm shadow-sm border space-y-4">
-          <h2 className="text-xl font-semibold">Select Organization</h2>
-          <p className="text-sm text-muted-foreground">
-            Please select an organization from below to view its dashboard.
-          </p>
-          <OrganizationSelector
-            organizations={orgs}
-            selectedOrgId={selectedOrgId}
-            onOrganizationSelect={(id) => setSelectedOrgId(id)}
-          />
-        </Card>
-      </div>
+      <OrganizationState 
+        hasOrganizations={orgs.length > 0} 
+        hasSelectedOrg={!!selectedOrgId}
+        orgs={orgs}
+        selectedOrgId={selectedOrgId}
+        onOrganizationSelect={(id) => setSelectedOrgId(id)}
+      />
     );
   }
 

@@ -27,7 +27,8 @@ import { CredentialListItem } from "../types";
 const CREDENTIAL_TYPES = [
     { value: "OPENAI", label: "OpenAI" },
     { value: "ANTHROPIC", label: "Anthropic" },
-    { value: "GEMINI", label: "Google Gemini" }
+    { value: "GEMINI", label: "Google Gemini" },
+    { value: "GROQ", label: "Groq" }
 ] as const;
 
 interface CreateCredentialModalProps {

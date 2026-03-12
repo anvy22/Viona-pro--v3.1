@@ -20,9 +20,9 @@ export function InventoryStats({ products }: InventoryStatsProps) {
   const outOfStockCount = products.filter(product => product.stock === 0).length;
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'INR',
+      currency: 'USD',
       maximumFractionDigits: 0,
     }).format(amount);
   };

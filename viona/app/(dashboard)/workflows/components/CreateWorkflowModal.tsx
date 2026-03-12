@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { createWorkflowWithInitialNode } from "../workflow-actions";
 
 interface Props {
@@ -22,6 +24,7 @@ export function CreateWorkflowModal({
   onCreated,
 }: Props) {
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   async function handleCreate() {
@@ -31,10 +34,12 @@ export function CreateWorkflowModal({
     try {
       await createWorkflowWithInitialNode({
         name,
+        description: description.trim() || undefined,
         orgId,
       });
 
       setName("");
+      setDescription("");
       onCreated();
       onOpenChange(false);
     } catch (error) {
@@ -51,11 +56,27 @@ export function CreateWorkflowModal({
           <DialogTitle>Create Workflow</DialogTitle>
         </DialogHeader>
 
-        <Input
-          placeholder="Workflow name"
-          value={name}
-          onChange={e => setName(e.target.value)}
-        />
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="workflow-name">Name *</Label>
+            <Input
+              id="workflow-name"
+              placeholder="Workflow name"
+              value={name}
+              onChange={e => setName(e.target.value)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="workflow-desc">Description</Label>
+            <Textarea
+              id="workflow-desc"
+              placeholder="What does this workflow do? (optional)"
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              rows={3}
+            />
+          </div>
+        </div>
 
         <div className="flex justify-end gap-2 mt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>

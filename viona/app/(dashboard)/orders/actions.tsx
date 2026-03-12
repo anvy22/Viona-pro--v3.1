@@ -82,7 +82,7 @@ export async function addOrder(orgId: string, newOrder: any) {
     console.log(`addOrder: Retrieved role "${role}" (type: ${typeof role}) for orgId ${orgId}`);
 
     // Permission check with explicit role validation
-    if (!role || !hasPermission(role, ['writer', 'read-write', 'admin'])) {
+    if (!role || !(await hasPermission(role, ['admin', 'manager', 'employee']))) {
       throw new Error(`Insufficient permissions to add orders. Current role: "${role}"`);
     }
 
@@ -146,8 +146,8 @@ export async function addOrder(orgId: string, newOrder: any) {
 
       console.log(`Transaction: Created order ${order.order_id} for customer ${order.customer_name}`);
 
-      const warehouse = await getOrCreateDefaultWarehouse(bigOrgId);
-      console.log(`Transaction: Using warehouse ${warehouse.warehouse_id} for stock updates`);
+      let warehouse = await getOrCreateDefaultWarehouse(bigOrgId);
+      console.log(`Transaction: Using default warehouse fallback ${warehouse.warehouse_id} initially`);
 
       let calculatedTotal = 0;
 
@@ -183,11 +183,9 @@ export async function addOrder(orgId: string, newOrder: any) {
 
         // Deduct stock (assuming sales order)
         const stockRecord = await tx.productStock.findFirst({
-          where: {
-            product_id: productId,
-            warehouse_id: warehouse.warehouse_id
-          },
-          select: { stock_id: true, quantity: true }
+          where: { product_id: productId },
+          orderBy: { quantity: 'desc' },
+          select: { stock_id: true, quantity: true, warehouse_id: true }
         });
 
         if (!stockRecord) throw new Error(`No stock found for product ${productId}`);
@@ -197,6 +195,10 @@ export async function addOrder(orgId: string, newOrder: any) {
           where: { stock_id: stockRecord.stock_id },
           data: { quantity: stockRecord.quantity - item.quantity }
         });
+
+        // Update the reference warehouse for response data
+        const actualWarehouse = await tx.warehouse.findUnique({ where: { warehouse_id: stockRecord.warehouse_id } });
+        if (actualWarehouse) warehouse = actualWarehouse;
 
         console.log(`Transaction: Deducted ${item.quantity} from stock for product ${productId}`);
       }
@@ -345,7 +347,7 @@ export async function updateOrder(orgId: string, id: string, updatedOrder: any) 
     await ensureOrganizationMember(orgId);
 
     const role = await getUserRole(orgId);
-    if (!hasPermission(role, ['writer', 'read-write', 'admin'])) {
+    if (!(await hasPermission(role, ['admin', 'manager', 'employee']))) {
       throw new Error('Insufficient permissions to update orders');
     }
 
@@ -433,10 +435,8 @@ export async function updateOrder(orgId: string, id: string, updatedOrder: any) 
         // To handle item updates, first add back stock for existing items
         for (const existingItem of existingOrder.orderItems) {
           const stockRecord = await tx.productStock.findFirst({
-            where: {
-              product_id: existingItem.product_id,
-              warehouse_id: warehouse.warehouse_id
-            },
+            where: { product_id: existingItem.product_id },
+            orderBy: { quantity: 'desc' },
             select: { stock_id: true, quantity: true }
           });
 
@@ -498,10 +498,8 @@ export async function updateOrder(orgId: string, id: string, updatedOrder: any) 
           });
 
           const stockRecord = await tx.productStock.findFirst({
-            where: {
-              product_id: productId,
-              warehouse_id: warehouse.warehouse_id
-            },
+            where: { product_id: productId },
+            orderBy: { quantity: 'desc' },
             select: { stock_id: true, quantity: true }
           });
 
@@ -642,7 +640,7 @@ export async function deleteOrder(orgId: string, id: string) {
     await ensureOrganizationMember(orgId);
 
     const role = await getUserRole(orgId);
-    if (!hasPermission(role, ['writer', 'read-write', 'admin'])) {
+    if (!(await hasPermission(role, ['admin', 'manager']))) {
       throw new Error('Insufficient permissions to delete orders');
     }
 
@@ -683,10 +681,8 @@ export async function deleteOrder(orgId: string, id: string) {
       // Add back stock
       for (const item of existingOrder.orderItems) {
         const stockRecord = await tx.productStock.findFirst({
-          where: {
-            product_id: item.product_id,
-            warehouse_id: warehouse.warehouse_id
-          },
+          where: { product_id: item.product_id },
+          orderBy: { quantity: 'desc' },
           select: { stock_id: true, quantity: true }
         });
 
@@ -774,7 +770,7 @@ export async function bulkUpdateOrders(orgId: string, updates: { id: string; dat
     await ensureOrganizationMember(orgId);
 
     const role = await getUserRole(orgId);
-    if (!hasPermission(role, ['writer', 'read-write', 'admin'])) {
+    if (!(await hasPermission(role, ['admin', 'manager', 'employee']))) {
       throw new Error('Insufficient permissions to update orders');
     }
 

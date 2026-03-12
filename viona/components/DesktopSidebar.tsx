@@ -17,6 +17,7 @@ import {
   MessageCircle,
   HardDrive,
   LucideIcon,
+  Users,
 } from "lucide-react";
 import { Logo } from "./Logo";
 import Link from "next/link";
@@ -31,6 +32,7 @@ import {
 } from "./ui/tooltip";
 import { UsageMeter } from "./UsageMeter";
 import { useSidebarStore } from "@/hooks/useSidebarStore";
+import { useCurrentOrgRole } from "@/hooks/useOrgStore";
 import { useState } from "react";
 
 const routes = [
@@ -38,7 +40,8 @@ const routes = [
   { href: "/orders", label: "Orders", icon: Logs },
   { href: "/inventory", label: "Inventory", icon: Package },
   { href: "/warehouse", label: "Warehouse", icon: Warehouse },
-  { href: "/workflows", label: "Workflows", icon: Layers2Icon },
+  { href: "/employees", label: "Employees", icon: Users, roles: ["admin", "manager"] as string[] },
+  { href: "/workflows", label: "Workflows", icon: Layers2Icon, roles: ["admin", "manager"] as string[] },
   { href: "/chat", label: "Chat", icon: MessageCircle },
   { href: "/credentials", label: "Credentials", icon: ShieldCheckIcon },
   { href: "/billing", label: "Billing", icon: CoinsIcon },
@@ -96,18 +99,23 @@ const SidebarLink = React.memo(function SidebarLink({
 const DesktopSidebar = () => {
   const { isCollapsed, toggle } = useSidebarStore();
   const pathname = usePathname();
+  const role = useCurrentOrgRole();
+
+  const visibleRoutes = useMemo(() => {
+    return routes.filter(r => !r.roles || (role && r.roles.includes(role)));
+  }, [role]);
 
   // Memoized active route calculation
   const activeRoute = useMemo(() => {
     return (
-      routes.find((route) => {
+      visibleRoutes.find((route) => {
         if (route.href === "/") {
           return pathname === "/";
         }
         return pathname === route.href || pathname.startsWith(route.href + "/");
-      }) || routes[0]
+      }) || visibleRoutes[0]
     );
-  }, [pathname]);
+  }, [pathname, visibleRoutes]);
 
   return (
     <TooltipProvider>
@@ -147,7 +155,7 @@ const DesktopSidebar = () => {
 
         {/* Sidebar links */}
         <div className="flex flex-col p-2 flex-1">
-          {routes.map((route) => (
+          {visibleRoutes.map((route) => (
             <SidebarLink
               key={route.href}
               href={route.href}
@@ -169,17 +177,22 @@ const DesktopSidebar = () => {
 export function MobileSidebar() {
   const [isOpen, setOpen] = useState(false);
   const pathname = usePathname();
+  const role = useCurrentOrgRole();
+
+  const visibleRoutes = useMemo(() => {
+    return routes.filter(r => !r.roles || (role && r.roles.includes(role)));
+  }, [role]);
 
   const activeRoute = useMemo(() => {
     return (
-      routes.find((route) => {
+      visibleRoutes.find((route) => {
         if (route.href === "/") {
           return pathname === "/";
         }
         return pathname === route.href || pathname.startsWith(route.href + "/");
-      }) || routes[0]
+      }) || visibleRoutes[0]
     );
-  }, [pathname]);
+  }, [pathname, visibleRoutes]);
 
   return (
     <div className="md:hidden">
@@ -195,7 +208,7 @@ export function MobileSidebar() {
         >
           <Logo />
           <div className="flex flex-col gap-1 flex-1">
-            {routes.map((route) => (
+            {visibleRoutes.map((route) => (
               <Link
                 key={route.href}
                 href={route.href}

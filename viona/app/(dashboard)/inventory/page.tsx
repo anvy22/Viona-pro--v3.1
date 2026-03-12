@@ -17,6 +17,7 @@ import { Pagination } from "@/components/Pagination";
 import { InventoryStats } from "./components/InventoryStats";
 import { BulkActionsBar } from "./components/BulkActionsBar";
 import { Download } from "lucide-react";
+import { OrganizationState } from "@/components/OrganizationState";
 
 import { getRole } from "@/app/(dashboard)/orders/actions"; 
 
@@ -305,84 +306,15 @@ export default function InventoryPage() {
     URL.revokeObjectURL(url);
   };
 
-  // Case 1: No organizations exist at all
-  if (orgs.length === 0) {
+  if (orgs.length === 0 || !selectedOrgId) {
     return (
-      <div className="flex-1 flex items-center justify-center p-4">
-        <div className="text-center max-w-md mx-auto">
-          <div className="mb-6">
-            <Building2 className="h-20 w-20 mx-auto text-muted-foreground mb-6" />
-            <h2 className="text-3xl font-bold mb-4">
-              Create an Organization to Get Started
-            </h2>
-            <p className="text-muted-foreground text-lg mb-8">
-              You need to create an organization first before you can manage
-              inventory. Organizations help you organize your products,
-              orders, and team members.
-            </p>
-
-            <div className="space-y-4">
-              <Button
-                onClick={() => (window.location.href = "/organization")}
-                size="lg"
-                className="w-full"
-              >
-                <Plus className="h-5 w-5 mr-2" />
-                Create Your First Organization
-              </Button>
-
-              <div className="text-sm text-muted-foreground">
-                <p>Once you create an organization, you can:</p>
-                <ul className="mt-2 space-y-1 text-left">
-                  <li>• Add and manage products</li>
-                  <li>• Track inventory levels</li>
-                  <li>• Invite team members</li>
-                  <li>• Process orders</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Case 2: Organizations exist but none is selected
-  if (!selectedOrgId) {
-    return (
-      <div className="flex-1 flex items-center justify-center p-4">
-        <div className="text-center max-w-md mx-auto">
-          <div className="mb-6">
-            <Building2 className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-            <h2 className="text-2xl font-semibold mb-2">
-              Select an Organization
-            </h2>
-            <p className="text-muted-foreground mb-6">
-              You have {orgs.length} organization
-              {orgs.length === 1 ? "" : "s"} available. Please select one
-              from the dropdown above to manage your inventory.
-            </p>
-
-            <div className="space-y-4">
-              <div className="text-sm text-muted-foreground">
-                <p>Available organizations:</p>
-                <ul className="mt-2 space-y-1">
-                  {orgs.slice(0, 3).map((org) => (
-                    <li key={org.id} className="truncate">
-                      • {org.name} ({org.role})
-                    </li>
-                  ))}
-                  {orgs.length > 3 && (
-                    <li className="text-xs">
-                      ... and {orgs.length - 3} more
-                    </li>
-                  )}
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <OrganizationState 
+        hasOrganizations={orgs.length > 0} 
+        hasSelectedOrg={!!selectedOrgId}
+        orgs={orgs}
+        selectedOrgId={selectedOrgId}
+        onOrganizationSelect={selectOrganization}
+      />
     );
   }
 

@@ -5,6 +5,7 @@ import { httpRequestExecutor } from "../../executions/http-request/executor";
 import { googleFormTriggerExecutor } from "../../triggers/google-form-trigger/executor";
 import { stripeTriggerExecutor } from "../../triggers/stripe-trigger/executor";
 import { geminiExecutor } from "../../executions/gemini/executor";
+import { groqExecutor } from "../../executions/groq/executor";
 import { openAiExecutor } from "../../executions/openai/executor";
 import { anthropicExecutor } from "../../executions/anthropic/executor";
 import { discordExecutor } from "../../executions/discord/executor";
@@ -20,14 +21,17 @@ import { orderManagerExecutor } from "../../executions/order-manager/executor";
 import { inventoryTriggerExecutor } from "../../triggers/inventory-trigger/executor";
 import { orderTriggerExecutor } from "../../triggers/order-trigger/executor";
 import { scheduledTriggerExecutor } from "../../triggers/scheduled-trigger/executor";
+import { conditionalExecutor } from "../../executions/conditional/executor";
 
 export const executorRegistry: Record<NodeType, NodeExecutor<any>> = {
+    [NodeType.CONDITIONAL]: conditionalExecutor,
     [NodeType.MANUAL_TRIGGER]: manualTriggerExecutor,
     [NodeType.INITIAL]: manualTriggerExecutor,
     [NodeType.HTTP_REQUEST]: httpRequestExecutor,
     [NodeType.GOOGLE_FORM_TRIGGER]: googleFormTriggerExecutor,
     [NodeType.STRIPE_TRIGGER]: stripeTriggerExecutor,
     [NodeType.GEMINI]: geminiExecutor,
+    [NodeType.GROQ]: groqExecutor,
     [NodeType.ANTHROPIC]: anthropicExecutor,
     [NodeType.OPENAI]: openAiExecutor,
     [NodeType.DISCORD]: discordExecutor,

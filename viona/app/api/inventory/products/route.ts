@@ -168,7 +168,7 @@ export async function GET(request: NextRequest) {
     // Check permissions (NOT cached - always fresh check)
     const role = await getUserRole(orgId);
     
-    if (!hasPermission(role, ['reader', 'writer', 'read-write', 'admin'])) {
+    if (!(await hasPermission(role, ['admin', 'manager', 'employee']))) {
       return NextResponse.json(
         { 
           error: 'Insufficient permissions to view products',

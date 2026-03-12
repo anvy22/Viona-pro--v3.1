@@ -15,8 +15,11 @@ import * as StorageApi from "@/lib/storageApi";
 import { FileItem } from "./types";
 import { cn } from "@/lib/utils";
 import { ArrowLeft } from "lucide-react";
+import { useOrgStore } from "@/hooks/useOrgStore";
+import { OrganizationState } from "@/components/OrganizationState";
 
 export default function Home() {
+  const { selectedOrgId, orgs, setSelectedOrgId } = useOrgStore();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [currentView, setCurrentView] = useState<"drive" | "trash">("drive");
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
@@ -425,6 +428,22 @@ export default function Home() {
       console.error("Paste failed", err);
     }
   };
+
+  if (orgs.length === 0 || !selectedOrgId) {
+    return (
+      <div className="flex flex-1 min-h-0 relative">
+        <OrganizationState 
+          hasOrganizations={orgs.length > 0} 
+          hasSelectedOrg={!!selectedOrgId}
+          orgs={orgs}
+          selectedOrgId={selectedOrgId}
+          onOrganizationSelect={setSelectedOrgId}
+          noOrgDescription="Create or join an organization to manage storage."
+          selectOrgDescription="Please select an organization to view storage."
+        />
+      </div>
+    );
+  }
 
   return (
           <div className="flex-1 overflow-y-auto relative ">

@@ -14,6 +14,7 @@ import {
     PackageSearch,
     ShoppingCart,
     Clock,
+    SplitSquareHorizontal,
 } from "lucide-react"
 import { useCallback } from "react";
 import { toast } from "sonner";
@@ -89,6 +90,12 @@ const executionNodes: NodeTypeOption[] = [
         icon: "/logos/gemini.svg",
     },
     {
+        type: NodeType.GROQ,
+        label: "Groq",
+        description: "Use Groq's fast inference models",
+        icon: "/logos/groq.svg",
+    },
+    {
         type: NodeType.OPENAI,
         label: "OpenAI",
         description: "Use OpenAI to generate content",
@@ -118,7 +125,12 @@ const executionNodes: NodeTypeOption[] = [
         description: "Autonomous agent with tools, memory & chat model",
         icon: Bot,
     },
-
+    {
+        type: NodeType.CONDITIONAL,
+        label: "Conditional",
+        description: "Branch workflow logic based on context variables",
+        icon: SplitSquareHorizontal,
+    },
 
 ];
 

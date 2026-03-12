@@ -13,6 +13,7 @@ import { CredentialListItem } from "./types";
 import { CredentialCard } from "./components/CredentialCard";
 import { CreateCredentialModal } from "./components/CreateCredentialModal";
 import { EmptyState } from "./components/EmptyState";
+import { OrganizationState } from "@/components/OrganizationState";
 
 export default function CredentialsPage() {
     const [credentials, setCredentials] = useState<CredentialListItem[]>([]);
@@ -87,32 +88,15 @@ export default function CredentialsPage() {
 
     /* --------- EMPTY ORG STATES --------- */
 
-    if (orgs.length === 0) {
+    if (orgs.length === 0 || !selectedOrgId) {
         return (
-            <div className="flex-1 flex items-center justify-center">
-                <Card className="p-8 text-center max-w-md shadow-sm border">
-                    <h2 className="text-xl font-semibold">No Organization Found</h2>
-                    <p className="text-muted-foreground mt-2">
-                        Create or join an organization to manage credentials.
-                    </p>
-                    <Button className="mt-4" onClick={() => location.href = "/organization"}>
-                        Create Organization
-                    </Button>
-                </Card>
-            </div>
-        );
-    }
-
-    if (!selectedOrgId) {
-        return (
-            <div className="flex-1 flex items-center justify-center">
-                <Card className="p-8 text-center max-w-md shadow-sm border">
-                    <h2 className="text-xl font-semibold">Select Organization</h2>
-                    <p className="text-muted-foreground mt-2">
-                        Choose an organization to view your secure credentials.
-                    </p>
-                </Card>
-            </div>
+            <OrganizationState 
+                hasOrganizations={orgs.length > 0} 
+                hasSelectedOrg={!!selectedOrgId}
+                orgs={orgs}
+                selectedOrgId={selectedOrgId}
+                onOrganizationSelect={setSelectedOrgId}
+            />
         );
     }
 

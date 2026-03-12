@@ -17,6 +17,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
+import { OrganizationState } from "@/components/OrganizationState";
 import {
   ArrowLeft,
   Package,
@@ -51,8 +52,9 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 
-// Import actions (you'll need to create getOrderDetails)
+// Import actions
 import { updateOrder, deleteOrder } from "../actions";
+import { AddOrderDialog } from "../components/AddOrderDialog";
 
 // Enhanced Order Details Interface
 interface OrderDetails {
@@ -129,6 +131,7 @@ export default function OrderDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const { selectedOrgId, orgs, setSelectedOrgId } = useOrgStore();
 
@@ -192,6 +195,22 @@ export default function OrderDetailPage() {
     }
   };
 
+  // Handle edit order save
+  const handleEditSave = async (orderData: any) => {
+    if (!selectedOrgId || !orderId) return;
+
+    try {
+      await updateOrder(selectedOrgId, orderId, orderData);
+      toast.success("Order updated successfully");
+      setIsEditDialogOpen(false);
+      await fetchOrderDetails();
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to update order";
+      toast.error(errorMessage);
+    }
+  };
+
   // Handle order deletion
   const handleDeleteOrder = async () => {
     if (!selectedOrgId || !orderId || !order) return;
@@ -231,38 +250,18 @@ export default function OrderDetailPage() {
     toast.info("Export functionality coming soon");
   };
 
-  // Handle no organizations
-  if (orgs.length === 0) {
+  // Handle no organizations or no selected organization
+  if (orgs.length === 0 || !selectedOrgId) {
     return (
-          <div className="flex-1 flex items-center justify-center p-4">
-            <Card className="p-8 text-center max-w-md">
-              <h2 className="text-xl font-semibold mb-2">
-                No Organization Found
-              </h2>
-              <p className="text-muted-foreground mb-4">
-                You need to create or join an organization to view orders.
-              </p>
-              <Button onClick={() => (window.location.href = "/organization")}>
-                Create Organization
-              </Button>
-            </Card>
-          </div>
-    );
-  }
-
-  // Handle no selected organization
-  if (!selectedOrgId) {
-    return (
-          <div className="flex-1 flex items-center justify-center p-4">
-            <Card className="p-8 text-center max-w-md">
-              <h2 className="text-xl font-semibold mb-2">
-                Select Organization
-              </h2>
-              <p className="text-muted-foreground">
-                Please select an organization to view order details.
-              </p>
-            </Card>
-          </div>
+      <OrganizationState 
+        hasOrganizations={orgs.length > 0} 
+        hasSelectedOrg={!!selectedOrgId}
+        orgs={orgs}
+        selectedOrgId={selectedOrgId}
+        onOrganizationSelect={setSelectedOrgId}
+        noOrgDescription="You need to create or join an organization to view orders."
+        selectOrgDescription="Please select an organization to view order details."
+      />
     );
   }
 
@@ -305,15 +304,14 @@ export default function OrderDetailPage() {
                     <Download className="h-4 w-4" />
                     Export
                   </Button>
-                  <Link href={`/orders?edit=${orderId}`}>
-                    <Button
-                      variant="outline"
-                      className="gap-2"
-                    >
-                      <Edit className="h-4 w-4" />
-                      Edit
-                    </Button>
-                  </Link>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsEditDialogOpen(true)}
+                    className="gap-2"
+                  >
+                    <Edit className="h-4 w-4" />
+                    Edit
+                  </Button>
                   <Button
                     variant="destructive"
                     onClick={handleDeleteOrder}
@@ -761,6 +759,17 @@ export default function OrderDetailPage() {
                   </CardContent>
                 </Card>
               </>
+            )}
+
+            {/* Edit Order Dialog */}
+            {order && selectedOrgId && (
+              <AddOrderDialog
+                open={isEditDialogOpen}
+                onOpenChange={setIsEditDialogOpen}
+                onSave={handleEditSave}
+                initialData={order}
+                orgId={selectedOrgId}
+              />
             )}
           </div>
         </div>

@@ -68,6 +68,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown, Power, PowerOff, Archive } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { OrganizationState } from "@/components/OrganizationState";
 
 // Dynamic chunks for heavy UI
 const EditProductDialog = dynamic(
@@ -386,22 +387,15 @@ export default function ProductDetailPage() {
     }
   }, [selectedOrgId, productId]);
 
-  // Empty/org guard rails
-  if (orgs.length === 0) {
+  if (orgs.length === 0 || !selectedOrgId) {
     return (
-        <div className="flex flex-1 flex-col">
-          <div className="flex-1 grid place-items-center p-6">
-            <Card className="p-8 text-center max-w-md">
-              <CardTitle className="mb-2">No Organization Found</CardTitle>
-              <CardDescription className="mb-4">
-                Create or join an organization to view products.
-              </CardDescription>
-              <Button onClick={() => (window.location.href = "/organization")}>
-                Create Organization
-              </Button>
-            </Card>
-          </div>
-        </div>
+      <OrganizationState 
+        hasOrganizations={orgs.length > 0} 
+        hasSelectedOrg={!!selectedOrgId}
+        orgs={orgs}
+        selectedOrgId={selectedOrgId}
+        onOrganizationSelect={(id) => useOrgStore.getState().setSelectedOrgId(id)}
+      />
     );
   }
 
@@ -418,21 +412,6 @@ export default function ProductDetailPage() {
               <Button onClick={() => router.push("/inventory")}>
                 Return to Inventory
               </Button>
-            </Card>
-          </div>
-        </div>
-    );
-  }
-
-  if (!selectedOrgId) {
-    return (
-        <div className="flex flex-1 flex-col">
-          <div className="flex-1 grid place-items-center p-6">
-            <Card className="p-8 text-center max-w-md">
-              <CardTitle className="mb-2">Select Organization</CardTitle>
-              <CardDescription>
-                Choose an organization to view product details.
-              </CardDescription>
             </Card>
           </div>
         </div>
@@ -631,7 +610,7 @@ export default function ProductDetailPage() {
                         <div className="text-center p-4 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 rounded-lg">
                           <DollarSign className="h-8 w-8 mx-auto mb-2 text-green-600" />
                           <div className="text-2xl font-bold">
-                            ₹{pricing.retail.toFixed(2)}
+                            ${pricing.retail.toFixed(2)}
                           </div>
                           <div className="text-sm text-green-600 dark:text-green-300">
                             Retail Price
@@ -641,7 +620,7 @@ export default function ProductDetailPage() {
                         <div className="text-center p-4 bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-950 dark:to-yellow-900 rounded-lg">
                           <TrendingDown className="h-8 w-8 mx-auto mb-2 text-yellow-600" />
                           <div className="text-2xl font-bold">
-                            ₹{pricing.actual.toFixed(2)}
+                            ${pricing.actual.toFixed(2)}
                           </div>
                           <div className="text-sm text-yellow-600 dark:text-yellow-300">
                             Actual Cost
@@ -651,7 +630,7 @@ export default function ProductDetailPage() {
                         <div className="text-center p-4 bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-950 dark:to-indigo-900 rounded-lg">
                           <TrendingUp className="h-8 w-8 mx-auto mb-2 text-indigo-600" />
                           <div className="text-2xl font-bold">
-                            ₹{pricing.market.toFixed(2)}
+                            ${pricing.market.toFixed(2)}
                           </div>
                           <div className="text-sm text-indigo-600 dark:text-indigo-300">
                             Market Price

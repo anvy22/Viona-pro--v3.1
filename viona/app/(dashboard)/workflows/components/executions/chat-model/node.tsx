@@ -60,13 +60,17 @@ export const ChatModelNode = memo((props: NodeProps<ChatModelNodeType>) => {
         ? "/logos/openai.svg"
         : nodeData?.provider === "anthropic"
             ? "/logos/anthropic.svg"
-            : "/logos/gemini.svg";
+            : nodeData?.provider === "groq"
+                ? "/logos/groq.svg"
+                : "/logos/gemini.svg";
 
     const providerName = nodeData?.provider === "openai"
         ? "OpenAI"
         : nodeData?.provider === "anthropic"
             ? "Anthropic"
-            : "Gemini";
+            : nodeData?.provider === "groq"
+                ? "Groq"
+                : "Gemini";
 
     const description = nodeData?.model
         ? nodeData.model

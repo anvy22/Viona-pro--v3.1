@@ -36,13 +36,25 @@ export async function getWorkflowWithNodes(
     }));
 
     // Transform server connections to react-flow compatible edges
-    const edges: Edge[] = workflow.connections.map((connection) => ({
-        id: connection.id,
-        source: connection.fromNodeId,
-        target: connection.toNodeId,
-        sourceHandle: connection.fromOutput,
-        targetHandle: connection.toInput,
-    }));
+    const edges: Edge[] = workflow.connections.map((connection) => {
+        const isAgentToolConnection = [
+            "chat-model-target",
+            "memory-target",
+            "tool-target"
+        ].includes(connection.toInput || "");
+
+        return {
+            id: connection.id,
+            source: connection.fromNodeId,
+            target: connection.toNodeId,
+            sourceHandle: connection.fromOutput,
+            targetHandle: connection.toInput,
+            ...(isAgentToolConnection && {
+                animated: true,
+                style: { strokeDasharray: "5,5" }
+            })
+        };
+    });
 
     return {
         id: workflow.id,
@@ -80,8 +92,8 @@ export async function getWorkflowsForOrg(orgId: string) {
     return workflows.map(w => ({
         id: w.id,
         name: w.name,
-        description: null,
-        status: "draft",
+        description: w.description || null,
+        status: w.status || "draft",
         createdAt: w.created_at.toISOString(),
         updatedAt: w.updated_at.toISOString(),
     }));
@@ -117,8 +129,30 @@ export async function updateWorkflowMetadataDb(
     return workflow;
 }
 
+export async function toggleWorkflowStatus(workflowId: string) {
+    const { userId: clerkId } = await auth();
+    if (!clerkId) throw new Error("Unauthorized");
+
+    const current = await prisma.workflow.findUnique({
+        where: { id: workflowId },
+        select: { status: true },
+    });
+
+    if (!current) throw new Error("Workflow not found");
+
+    const newStatus = current.status === "active" ? "draft" : "active";
+
+    await prisma.workflow.update({
+        where: { id: workflowId },
+        data: { status: newStatus },
+    });
+
+    return { status: newStatus };
+}
+
 export async function createWorkflowWithInitialNode(input: {
     name: string;
+    description?: string;
     orgId: string;
 }) {
     const { userId: clerkId } = await auth();
@@ -130,6 +164,7 @@ export async function createWorkflowWithInitialNode(input: {
     const workflow = await prisma.workflow.create({
         data: {
             name: input.name,
+            description: input.description || null,
             org_id: BigInt(input.orgId),
             user_id: userId,
             nodes: {
@@ -203,9 +238,12 @@ export async function executeWorkflow(workflowId: string) {
 
     const workflow = await prisma.workflow.findUniqueOrThrow({
         where: { id: workflowId },
-        select: { id: true },
+        select: { id: true, status: true },
     });
 
+    if (workflow.status !== "active") {
+        throw new Error("Workflow is not active. Activate the workflow before running it.");
+    }
 
     await enqueueWorkflow({
         workflowId,

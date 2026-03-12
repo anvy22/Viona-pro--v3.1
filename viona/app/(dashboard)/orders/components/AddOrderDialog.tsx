@@ -129,9 +129,12 @@ export function AddOrderDialog({
           throw new Error(data.error);
         }
 
-        if (Array.isArray(data)) {
-          setProducts(data);
-          if (data.length === 0) {
+        // Handle paginated response format: { data: [...], total, page, ... }
+        const productsList = Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : null);
+
+        if (productsList) {
+          setProducts(productsList);
+          if (productsList.length === 0) {
             setError('No products found in your inventory. Please add products first.');
           }
         } else {
@@ -155,7 +158,17 @@ export function AddOrderDialog({
     if (initialData) {
       setOrderDate(initialData.orderDate.split('T')[0]);
       setStatus(initialData.status);
-      setItems(initialData.orderItems || []);
+      // Normalize order items - handle both nested product and flat field formats
+      const normalizedItems = (initialData.orderItems || []).map((item: any) => ({
+        product: item.product || {
+          id: item.productId || '',
+          name: item.productName || '',
+          sku: item.productSku || '',
+        },
+        quantity: item.quantity || 0,
+        priceAtOrder: item.priceAtOrder || 0,
+      }));
+      setItems(normalizedItems);
       setTotal(initialData.totalAmount || 0);
       setCustomer(initialData.customer || {
         name: '',
@@ -696,12 +709,12 @@ export function AddOrderDialog({
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="pending">⏳ Pending</SelectItem>
-                        <SelectItem value="confirmed">✅ Confirmed</SelectItem>
-                        <SelectItem value="processing">⚙️ Processing</SelectItem>
-                        <SelectItem value="shipped">🚚 Shipped</SelectItem>
-                        <SelectItem value="delivered">📦 Delivered</SelectItem>
-                        <SelectItem value="cancelled">❌ Cancelled</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="confirmed">Confirmed</SelectItem>
+                        <SelectItem value="processing">Processing</SelectItem>
+                        <SelectItem value="shipped"> Shipped</SelectItem>
+                        <SelectItem value="delivered">Delivered</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -750,10 +763,10 @@ export function AddOrderDialog({
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="standard">📦 Standard Shipping (5-7 days)</SelectItem>
-                            <SelectItem value="express">⚡ Express Shipping (2-3 days)</SelectItem>
-                            <SelectItem value="overnight">🚀 Overnight Shipping (1 day)</SelectItem>
-                            <SelectItem value="pickup">🏪 Store Pickup</SelectItem>
+                            <SelectItem value="standard">Standard Shipping (5-7 days)</SelectItem>
+                            <SelectItem value="express">Express Shipping (2-3 days)</SelectItem>
+                            <SelectItem value="overnight">Overnight Shipping (1 day)</SelectItem>
+                            <SelectItem value="pickup">Store Pickup</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -768,12 +781,12 @@ export function AddOrderDialog({
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="credit_card">💳 Credit Card</SelectItem>
-                            <SelectItem value="debit_card">💳 Debit Card</SelectItem>
-                            <SelectItem value="paypal">🟦 PayPal</SelectItem>
-                            <SelectItem value="bank_transfer">🏦 Bank Transfer</SelectItem>
-                            <SelectItem value="cash_on_delivery">💵 Cash on Delivery</SelectItem>
-                            <SelectItem value="check">📄 Check</SelectItem>
+                            <SelectItem value="credit_card">Credit Card</SelectItem>
+                            <SelectItem value="debit_card">Debit Card</SelectItem>
+                            <SelectItem value="paypal">PayPal</SelectItem>
+                            <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                            <SelectItem value="cash_on_delivery">Cash on Delivery</SelectItem>
+                            <SelectItem value="check">Check</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

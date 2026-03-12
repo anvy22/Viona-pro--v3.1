@@ -42,7 +42,7 @@ function PriceHistoryChart({ data }: { data: Row[] }) {
         <YAxis yAxisId="margin" orientation="right" />
         <Tooltip
           formatter={(value: any, name: string) =>
-            name === "margin" ? [`${Number(value).toFixed(1)}%`, "Profit Margin"] : [`₹${Number(value).toFixed(2)}`, name]
+            name === "margin" ? [`${Number(value).toFixed(1)}%`, "Profit Margin"] : [`$${Number(value).toFixed(2)}`, name]
           }
         />
         <Legend />

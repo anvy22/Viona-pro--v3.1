@@ -35,9 +35,22 @@ export function startWorker() {
                 await broadcastStatus(workflowId, nodeId, status);
             };
 
-            // 3. Execute nodes in order
+            // 3. Execute nodes in order honoring dynamic branches
             let context: Record<string, unknown> = initialData || {};
+            const skippedNodes = new Set<string>();
+
+            // Find all connections to evaluate paths
+            const { connections } = workflow;
+
             for (const node of sortedNodes) {
+                // If this node is skipped (because its parent was conditionally evaluated false), skip it
+                if (skippedNodes.has(node.id)) {
+                    // Also mark all its children as skipped too (cascading)
+                    const dependentEdges = connections.filter(c => c.fromNodeId === node.id);
+                    dependentEdges.forEach(e => skippedNodes.add(e.toNodeId));
+                    continue;
+                }
+
                 const executor = getExecutor(node.type as NodeType);
                 context = await executor({
                     data: node.data as Record<string, unknown>,
@@ -45,6 +58,21 @@ export function startWorker() {
                     context,
                     publish,
                 });
+
+                // Check if this node returned branching logic (e.g. Conditional Node)
+                if (context._activeOutputHandle) {
+                    const activeHandle = context._activeOutputHandle as string;
+                    // Find any connections coming FROM this node that do NOT match the active handle
+                    const inactiveEdges = connections.filter(
+                        c => c.fromNodeId === node.id && c.fromOutput !== activeHandle
+                    );
+                    
+                    // Mark the targets of those inactive branches to be skipped
+                    inactiveEdges.forEach(e => skippedNodes.add(e.toNodeId));
+                    
+                    // Cleanup internal flag so it doesn't pollute downstream Context
+                    delete context._activeOutputHandle;
+                }
             }
 
             return { workflowId, result: context };

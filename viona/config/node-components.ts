@@ -6,6 +6,7 @@ import { ManualTriggerNode } from "../app/(dashboard)/workflows/components/trigg
 import { GoogleFormTrigger } from "../app/(dashboard)/workflows/components/triggers/google-form-trigger/node";
 import { StripeTriggerNode } from "../app/(dashboard)/workflows/components/triggers/stripe-trigger/node";
 import { GeminiNode } from "../app/(dashboard)/workflows/components/executions/gemini/node";
+import { GroqNode } from "../app/(dashboard)/workflows/components/executions/groq/node";
 import { OpenAiNode } from "@/app/(dashboard)/workflows/components/executions/openai/node";
 import { AnthropicNode } from "@/app/(dashboard)/workflows/components/executions/anthropic/node";
 import { DiscordNode } from "@/app/(dashboard)/workflows/components/executions/discord/node";
@@ -21,14 +22,17 @@ import { OrderManagerNode } from "@/app/(dashboard)/workflows/components/executi
 import { InventoryTriggerNode } from "@/app/(dashboard)/workflows/components/triggers/inventory-trigger/node";
 import { OrderTriggerNode } from "@/app/(dashboard)/workflows/components/triggers/order-trigger/node";
 import { ScheduledTriggerNode } from "@/app/(dashboard)/workflows/components/triggers/scheduled-trigger/node";
+import { ConditionalNode } from "@/app/(dashboard)/workflows/components/executions/conditional/node";
 
 export const nodeComponents = {
+    [NodeType.CONDITIONAL]: ConditionalNode,
     [NodeType.INITIAL]: InitialNode,
     [NodeType.MANUAL_TRIGGER]: ManualTriggerNode,
     [NodeType.HTTP_REQUEST]: HttpRequestNode,
     [NodeType.GOOGLE_FORM_TRIGGER]: GoogleFormTrigger,
     [NodeType.STRIPE_TRIGGER]: StripeTriggerNode,
     [NodeType.GEMINI]: GeminiNode,
+    [NodeType.GROQ]: GroqNode,
     [NodeType.OPENAI]: OpenAiNode,
     [NodeType.ANTHROPIC]: AnthropicNode,
     [NodeType.DISCORD]: DiscordNode,

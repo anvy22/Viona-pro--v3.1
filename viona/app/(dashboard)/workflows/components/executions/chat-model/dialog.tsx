@@ -46,12 +46,24 @@ const PROVIDERS = {
             "claude-3-haiku-20240307",
         ],
     },
+    groq: {
+        label: "Groq",
+        icon: "/logos/groq.svg",
+        credentialType: "GROQ" as CredentialType,
+        models: [
+            "llama3-8b-8192",
+            "llama3-70b-8192",
+            "mixtral-8x7b-32768",
+            "gemma-7b-it",
+            "gemma2-9b-it",
+        ],
+    },
 } as const;
 
 export type ProviderKey = keyof typeof PROVIDERS;
 
 const formSchema = z.object({
-    provider: z.enum(["gemini", "openai", "anthropic"]),
+    provider: z.enum(["gemini", "openai", "anthropic", "groq"]),
     model: z.string().min(1, "Model is required"),
 });
 

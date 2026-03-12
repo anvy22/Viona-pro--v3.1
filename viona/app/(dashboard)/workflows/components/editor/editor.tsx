@@ -102,7 +102,19 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
         [],
     );
     const onConnect = useCallback(
-        (params: Connection) => setEdges((edgesSnapshot) => addEdge(params, edgesSnapshot)),
+        (params: Connection) => {
+            const isAgentToolConnection = [
+                "chat-model-target",
+                "memory-target",
+                "tool-target"
+            ].includes(params.targetHandle || "");
+
+            const edgeToAdd = isAgentToolConnection
+                ? { ...params, animated: true, style: { strokeDasharray: "5,5" } }
+                : params;
+
+            setEdges((edgesSnapshot) => addEdge(edgeToAdd, edgesSnapshot));
+        },
         [],
     );
 
