@@ -33,7 +33,7 @@ export async function createFolder(req: Request, res: Response) {
       data: {
         name,
         type: "folder",
-        parentId: parentId || null, // ensure empty string becomes null
+        parentId: parentId || null,
         ownerId: req.user!.id,
       },
     });
@@ -49,7 +49,6 @@ export async function update(req: Request, res: Response) {
   try {
     const { id } = req.params;
 
-    // SECURITY FIX: Verify ownership before updating
     const existingFile = await prisma.file.findFirst({
       where: { id, ownerId: req.user!.id },
     });
@@ -60,7 +59,6 @@ export async function update(req: Request, res: Response) {
 
     const data: FileUpdateData = { ...req.body };
 
-    // Handle trash state
     if (data.isTrashed === true) {
       data.trashedAt = new Date();
     } else if (data.isTrashed === false) {
@@ -185,7 +183,7 @@ export async function copy(req: Request, res: Response) {
     const newKey = `${req.user!.id}/${Date.now()}-${original.name}`;
     const sourceBlob = containerClient.getBlockBlobClient(original.gcsKey!);
     const destBlob = containerClient.getBlockBlobClient(newKey);
-    await destBlob.beginCopyFromURL(sourceBlob.url); // Azure server-side copy
+    await destBlob.beginCopyFromURL(sourceBlob.url);
 
     const newFile = await prisma.file.create({
       data: {

@@ -270,7 +270,7 @@ export async function addProduct(
     warehouseId?: string;
   }
 ) {
-  const userId = await requireRole(orgId, ["admin", "manager", "employee"]);
+  const userId = await requireRole(orgId, ["admin", "manager"]);
 
   try {
     const bigOrgId = toBigInt(orgId);
@@ -399,7 +399,7 @@ export async function updateProduct(
     description?: string;
   }
 ) {
-  const userId = await requireRole(orgId, ["admin", "manager", "employee"]);
+  const userId = await requireRole(orgId, ["admin", "manager"]);
 
   try {
     const bigOrgId = toBigInt(orgId);
@@ -522,7 +522,7 @@ export async function updateProduct(
 }
 
 export async function deleteProduct(orgId: string, productId: string) {
-  const userId = await requireRole(orgId, ["admin", "manager", "employee"]);
+  const userId = await requireRole(orgId, ["admin", "manager"]);
 
   try {
     const bigOrgId = toBigInt(orgId);
@@ -617,7 +617,7 @@ export async function bulkUpdateProducts(
   orgId: string,
   updates: { id: string; data: Omit<Product, "id" | "createdAt" | "updatedAt"> }[]
 ) {
-  const userId = await requireRole(orgId, ["admin", "manager", "employee"]);
+  const userId = await requireRole(orgId, ["admin", "manager"]);
   if (!updates || updates.length === 0) throw new Error("No updates provided");
 
   try {
@@ -809,7 +809,7 @@ export async function warmupProductCache(orgId: string) {
 export async function getProductDetails(orgId: string, productId: string) {
   if (!orgId || !productId) throw new Error("Missing required parameters");
 
-  await requireRole(orgId, ["reader", "writer", "read-write", "admin"]);
+  await requireRole(orgId, ["admin", "manager", "employee"]);
 
   try {
     return await getCachedProductDetails(orgId, productId);
@@ -834,7 +834,7 @@ export async function updateProductDetails(
 ) {
   if (!orgId || !productId) throw new Error("Missing required parameters");
 
-  const userId = await requireRole(orgId, ["writer", "read-write", "admin"]);
+  const userId = await requireRole(orgId, ["admin", "manager"]);
 
   try {
     const bigOrgId = toBigInt(orgId);
@@ -903,7 +903,7 @@ export async function updateProductDetails(
 export async function deleteProductDetails(orgId: string, productId: string) {
   if (!orgId || !productId) throw new Error("Missing required parameters");
 
-  await requireRole(orgId, ["writer", "read-write", "admin"]);
+  await requireRole(orgId, ["admin", "manager"]);
 
   try {
     const bigPid = toBigInt(productId);
@@ -1024,7 +1024,7 @@ export async function updateProductStock(
     await ensureOrganizationMember(orgId);
 
     const role = await getUserRole(orgId);
-    if (!hasPermission(role, ["writer", "read-write", "admin"])) {
+    if (!(await hasPermission(role, ["admin", "manager", "employee"]))) {
       throw new Error("Insufficient permissions to update stock");
     }
 
@@ -1140,7 +1140,7 @@ export async function transferStock(
     throw new Error("Missing required parameters");
   }
 
-  await requireRole(orgId, ["writer", "read-write", "admin"]);
+  await requireRole(orgId, ["admin", "manager", "employee"]);
 
   try {
     const bigOrgId = toBigInt(orgId);
@@ -1203,7 +1203,7 @@ export async function getWarehousesWithStock(orgId: string, productId: string) {
   if (!orgId) throw new Error("Organization ID is required");
   if (!productId) throw new Error("Product ID is required");
 
-  await requireRole(orgId, ["reader", "writer", "read-write", "admin"]);
+  await requireRole(orgId, ["admin", "manager", "employee"]);
 
   try {
     return await getCachedWarehousesWithStock(orgId, productId);
@@ -1261,7 +1261,7 @@ export async function deactivateProduct(
 ) {
   if (!orgId || !productId) throw new Error("Missing required parameters");
 
-  const userId = await requireRole(orgId, ["writer", "read-write", "admin"]);
+  const userId = await requireRole(orgId, ["admin", "manager"]);
 
   try {
     const bigOrgId = toBigInt(orgId);
@@ -1310,7 +1310,7 @@ export async function deactivateProduct(
 export async function activateProduct(orgId: string, productId: string) {
   if (!orgId || !productId) throw new Error("Missing required parameters");
 
-  const userId = await requireRole(orgId, ["writer", "read-write", "admin"]);
+  const userId = await requireRole(orgId, ["admin", "manager"]);
 
   try {
     const bigOrgId = toBigInt(orgId);
@@ -1364,7 +1364,7 @@ export async function updateProductStatus(
 ) {
   if (!orgId || !productId) throw new Error("Missing required parameters");
 
-  const userId = await requireRole(orgId, ["writer", "read-write", "admin"]);
+  const userId = await requireRole(orgId, ["admin", "manager"]);
 
   try {
     const bigOrgId = toBigInt(orgId);
@@ -1409,7 +1409,7 @@ export async function getWarehousesForDialog(orgId: string) {
   if (!orgId) throw new Error("Organization ID is required");
 
   try {
-    await requireRole(orgId, ["reader", "writer", "read-write", "admin"]);
+    await requireRole(orgId, ["admin", "manager", "employee"]);
 
     const bigOrgId = toBigInt(orgId);
 

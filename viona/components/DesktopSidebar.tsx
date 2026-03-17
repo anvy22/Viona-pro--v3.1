@@ -43,8 +43,8 @@ const routes = [
   { href: "/employees", label: "Employees", icon: Users, roles: ["admin", "manager"] as string[] },
   { href: "/workflows", label: "Workflows", icon: Layers2Icon, roles: ["admin", "manager"] as string[] },
   { href: "/chat", label: "Chat", icon: MessageCircle },
-  { href: "/credentials", label: "Credentials", icon: ShieldCheckIcon },
-  { href: "/billing", label: "Billing", icon: CoinsIcon },
+  { href: "/credentials", label: "Credentials", icon: ShieldCheckIcon, roles: ["admin", "manager"] as string[] },
+  { href: "/billing", label: "Billing", icon: CoinsIcon, roles: ["admin", "manager"] as string[] },
   { href: "/organization", label: "Organization", icon: Building2 },
   { href: "/storage", label: "Storage", icon: HardDrive },
 ];

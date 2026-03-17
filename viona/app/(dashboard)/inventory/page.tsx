@@ -181,7 +181,7 @@ export default function InventoryPage() {
     }
 
     // RBAC: e.g. admin, manager, employee can add
-    if (!can(["manager", "employee"])) {
+    if (!can(["manager"])) {
       setError("You do not have permission to add products.");
       return;
     }
@@ -355,7 +355,7 @@ export default function InventoryPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0 gap-4">
             <div className="flex items-center gap-2 flex-wrap">
               {/* RBAC: Add Product visible only for allowed roles */}
-              {can(["manager", "employee"]) && (
+              {can(["manager"]) && (
                 <Button
                   onClick={() => setIsDialogOpen(true)}
                   disabled={isLoading || roleLoading}
@@ -428,7 +428,7 @@ export default function InventoryPage() {
                       Get started by adding your first product to the inventory. You
                       can track stock levels, prices, and manage your product catalog.
                     </p>
-                    {can(["manager", "employee"]) && (
+                    {can(["manager"]) && (
                       <Button
                         onClick={() => setIsDialogOpen(true)}
                         className="w-full sm:w-auto"
@@ -487,7 +487,7 @@ export default function InventoryPage() {
 
           <AddProductDialog
             // RBAC: disallow dialog opening if user cannot add
-            open={isDialogOpen && can(["manager", "employee"])}
+            open={isDialogOpen && can(["manager"])}
             onOpenChange={setIsDialogOpen}
             onSave={handleAddProduct}
             orgId={selectedOrgId}
