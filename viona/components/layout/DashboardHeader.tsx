@@ -8,6 +8,8 @@ import { SearchBar } from "@/components/SearchBar";
 import { NotificationDropdown } from "@/components/NotificationDropdown";
 import { ModeToggle } from "@/components/ThemeModeToggle";
 import { SignedIn, UserButton } from "@clerk/nextjs";
+import { dark } from "@clerk/themes";
+import { useTheme } from "next-themes";
 import { OrganizationSelector } from "@/app/(dashboard)/organization/components/OrganizationSelector";
 import { useOrgStore } from "@/hooks/useOrgStore";
 
@@ -31,6 +33,7 @@ function shouldShowOrgSelector(pathname: string): boolean {
 export const DashboardHeader = React.memo(function DashboardHeader() {
   const pathname = usePathname();
   const { selectedOrgId, orgs, setSelectedOrgId } = useOrgStore();
+  const { resolvedTheme } = useTheme();
 
   // Check if we are in the workflow editor (e.g., /workflows/[workflowId])
   const isWorkflowEditor = pathname.match(/^\/workflows\/[^/]+$/);
@@ -56,7 +59,7 @@ export const DashboardHeader = React.memo(function DashboardHeader() {
         <div className="flex items-center gap-4">
           <ModeToggle />
           <SignedIn>
-            <UserButton />
+            <UserButton appearance={{ baseTheme: resolvedTheme === "dark" ? dark : undefined }} />
           </SignedIn>
         </div>
       </header>

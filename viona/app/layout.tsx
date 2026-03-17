@@ -7,6 +7,8 @@ import { AppInitializer } from "@/components/AppInitializer";
 import { Toaster } from "@/components/ui/sonner"
 import { Provider } from "jotai";
 
+import { clerkAppearance } from "@/lib/clerk-appearance";
+
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -22,12 +24,7 @@ export default function RootLayout({
   return (
     <ClerkProvider 
       afterSignOutUrl={"/landing"}
-      appearance={{
-        elements: {
-          formButtonPrimary:
-            "bg-primary hover:bg-primary/90 text-sm !shadow-none",
-        },
-      }}
+      appearance={clerkAppearance}
     >
       <html lang="en" suppressHydrationWarning>
         <body className={inter.className}>
