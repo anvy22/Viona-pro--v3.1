@@ -5,6 +5,7 @@ import { type Node, type Edge } from "@xyflow/react";
 import { auth } from "@clerk/nextjs/server";
 import { Prisma, NodeType } from "@prisma/client";
 import { enqueueWorkflow } from "@/lib/queue";
+import { getUsageStats } from "@/app/(dashboard)/billing/billing-actions";
 
 
 export type WorkflowWithNodesAndEdges = {
@@ -157,6 +158,11 @@ export async function createWorkflowWithInitialNode(input: {
 }) {
     const { userId: clerkId } = await auth();
     if (!clerkId) throw new Error("Unauthorized");
+
+    const usageStats = await getUsageStats(input.orgId);
+    if (usageStats && !usageStats.workflows.allowed) {
+        return { error: "Workflow limit reached. Please upgrade your plan to create more workflows." };
+    }
 
     const userId = await getUserIdFromClerkId(clerkId);
     if (!userId) throw new Error("User not found in database");

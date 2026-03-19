@@ -8,6 +8,7 @@ import {
   invalidateOrgMemberCache,
   invalidateUserCache,
 } from "@/lib/auth";
+import { getUsageStats } from "@/app/(dashboard)/billing/billing-actions";
 
 /**
  * Get invite details - REQUIRES AUTHENTICATION
@@ -231,6 +232,11 @@ export async function acceptInvite(token: string) {
 
       if (existingMember) {
         throw new Error("You are already a member of this organization");
+      }
+
+      const usageStats = await getUsageStats(invite.org_id.toString());
+      if (usageStats && !usageStats.members.allowed) {
+        throw new Error("Organization has reached its member limit. The organization owner must upgrade the plan to add more members.");
       }
 
       // Create organization membership

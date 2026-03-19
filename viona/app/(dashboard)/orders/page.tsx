@@ -164,10 +164,12 @@ export default function OrdersPage() {
       const isEditing = !!editingOrder;
       
       if (isEditing) {
-        await updateOrder(selectedOrgId, editingOrder.id, orderData);
+        const result = await updateOrder(selectedOrgId, editingOrder.id, orderData);
+        if (result && !result.success && 'error' in result) throw new Error(result.error as string);
         toast.success("Order updated successfully");
       } else {
-        await addOrder(selectedOrgId, orderData);
+        const result = await addOrder(selectedOrgId, orderData);
+        if (result && !result.success && 'error' in result) throw new Error(result.error as string);
         toast.success("Order created successfully");
       }
       
@@ -186,7 +188,9 @@ export default function OrdersPage() {
 
     try {
       setError(null);
-      await deleteOrder(selectedOrgId, id);
+      const result = await deleteOrder(selectedOrgId, id);
+      if (result && !result.success && 'error' in result) throw new Error(result.error as string);
+      
       await fetchOrders();
       setSelectedOrderIds(prev => {
         const newSet = new Set(prev);
@@ -223,7 +227,9 @@ export default function OrdersPage() {
         };
       });
 
-      await bulkUpdateOrders(selectedOrgId, updates);
+      const result = await bulkUpdateOrders(selectedOrgId, updates);
+      if (result && !result.success && 'error' in result) throw new Error(result.error as string);
+      
       await fetchOrders();
       setSelectedOrderIds(new Set());
       toast.success(`Updated ${updates.length} orders successfully`);
