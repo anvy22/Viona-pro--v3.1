@@ -136,12 +136,19 @@ export async function toggleWorkflowStatus(workflowId: string) {
 
     const current = await prisma.workflow.findUnique({
         where: { id: workflowId },
-        select: { status: true },
+        select: { status: true, org_id: true },
     });
 
     if (!current) throw new Error("Workflow not found");
 
     const newStatus = current.status === "active" ? "draft" : "active";
+
+    if (newStatus === "active") {
+        const usageStats = await getUsageStats(current.org_id.toString());
+        if (usageStats && !usageStats.workflows.allowed) {
+            return { error: "Workflow activation limit reached. Please upgrade your plan to activate more workflows." };
+        }
+    }
 
     await prisma.workflow.update({
         where: { id: workflowId },
@@ -158,11 +165,6 @@ export async function createWorkflowWithInitialNode(input: {
 }) {
     const { userId: clerkId } = await auth();
     if (!clerkId) throw new Error("Unauthorized");
-
-    const usageStats = await getUsageStats(input.orgId);
-    if (usageStats && !usageStats.workflows.allowed) {
-        return { error: "Workflow limit reached. Please upgrade your plan to create more workflows." };
-    }
 
     const userId = await getUserIdFromClerkId(clerkId);
     if (!userId) throw new Error("User not found in database");

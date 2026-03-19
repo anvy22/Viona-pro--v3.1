@@ -26,7 +26,11 @@ export function WorkflowCard({ workflow, onUpdate, onDelete, onStatusToggle, can
   const handleToggle = async (checked: boolean) => {
     setOptimisticActive(checked);
     try {
-      await toggleWorkflowStatus(workflow.id);
+      const result = await toggleWorkflowStatus(workflow.id);
+      if (result && result.error) {
+        setOptimisticActive(!checked);
+        toast.error(result.error);
+      }
     } catch (err) {
       setOptimisticActive(!checked);
       toast.error("Failed to update workflow status");

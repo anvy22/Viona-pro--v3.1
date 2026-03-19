@@ -25,7 +25,7 @@ export async function getSubscriptionDetails(orgId: string) {
     const usage = await getUsageForOrg(id);
     const plan = getPlanConfig(subscription.plan);
 
-    const workflowCount = await prisma.workflow.count({ where: { org_id: id } });
+    const workflowCount = await prisma.workflow.count({ where: { org_id: id, status: "active" } });
     const memberCount = await prisma.organizationMember.count({ where: { org_id: id } });
 
     return {
@@ -60,7 +60,7 @@ export async function getUsageStats(orgId: string) {
     const usage = await getUsageForOrg(id);
     const plan = getPlanConfig(subscription.plan);
 
-    const workflowCount = await prisma.workflow.count({ where: { org_id: id } });
+    const workflowCount = await prisma.workflow.count({ where: { org_id: id, status: "active" } });
     const memberCount = await prisma.organizationMember.count({ where: { org_id: id } });
 
     const workflowLimit = plan.limits.workflows;
