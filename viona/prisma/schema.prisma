@@ -338,4 +338,3 @@ model UsageRecord {
   @@unique([org_id, period])
   @@index([org_id])
 }
-
