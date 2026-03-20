@@ -60,14 +60,29 @@ export async function upload(req: Request, res: Response) {
       return res.status(400).json({ error: "Name and type are required" });
     }
 
+    // If no explicit orgId was passed but a parentId was given,
+    // inherit orgId from the parent folder so org members can access the file.
+    let resolvedOrgId = orgId ? String(orgId) : null;
+    if (!resolvedOrgId && parentId) {
+      const parent = await prisma.file.findUnique({
+        where: { id: parentId },
+        select: { orgId: true },
+      });
+      if (parent?.orgId) {
+        resolvedOrgId = parent.orgId;
+      }
+    }
+
     const fileId = crypto.randomUUID();
 
     // Org inventory images get a deterministic, SKU-based blob path.
     // Re-uploading the same SKU overwrites the blob automatically.
     let blobName: string;
-    if (orgId && sku) {
+    if (resolvedOrgId && sku) {
       const ext = name.split(".").pop() ?? "jpg";
-      blobName = `organizations/${orgId}/${sku}.${ext}`;
+      blobName = `organizations/${resolvedOrgId}/${sku}.${ext}`;
+    } else if (resolvedOrgId) {
+      blobName = `organizations/${resolvedOrgId}/${fileId}-${name}`;
     } else {
       blobName = `${req.user!.id}/${fileId}`;
     }
@@ -82,7 +97,7 @@ export async function upload(req: Request, res: Response) {
         parentId: parentId || null,
         ownerId: req.user!.id,
         gcsKey: blobName,
-        ...(orgId ? { orgId: String(orgId) } : {}),
+        ...(resolvedOrgId ? { orgId: resolvedOrgId } : {}),
       },
     });
 

@@ -77,8 +77,13 @@ export async function trashItem(token: string, id: string) {
   return res.json();
 }
 
-export async function deleteItem(token: string, id: string) {
-  const res = await apiFetch(token, `/api/files/${id}`, {
+export async function deleteItem(
+  token: string,
+  id: string,
+  orgIds: string[] = [],
+) {
+  const query = orgIds.length > 0 ? `?orgIds=${orgIds.join(",")}` : "";
+  const res = await apiFetch(token, `/api/files/${id}${query}`, {
     method: "DELETE",
   });
   if (!res.ok) throw new Error("Failed to delete item");
@@ -128,8 +133,10 @@ export async function uploadFile(
 export async function getDownloadUrl(
   token: string,
   fileId: string,
+  orgIds: string[] = [],
 ): Promise<string> {
-  const res = await apiFetch(token, `/api/storage/download/${fileId}`);
+  const query = orgIds.length > 0 ? `?orgIds=${orgIds.join(",")}` : "";
+  const res = await apiFetch(token, `/api/storage/download/${fileId}${query}`);
   if (!res.ok) throw new Error("Failed to get download URL");
   const { downloadUrl: url } = await res.json();
   return url;
@@ -155,8 +162,10 @@ export async function restoreItem(token: string, id: string) {
 export async function getViewUrl(
   token: string,
   fileId: string,
+  orgIds: string[] = [],
 ): Promise<string> {
-  const res = await apiFetch(token, `/api/storage/view/${fileId}`);
+  const query = orgIds.length > 0 ? `?orgIds=${orgIds.join(",")}` : "";
+  const res = await apiFetch(token, `/api/storage/view/${fileId}${query}`);
   if (!res.ok) throw new Error("Failed to get view URL");
   const { viewUrl } = await res.json();
   return viewUrl;

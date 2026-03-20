@@ -20,6 +20,7 @@ import { OrganizationState } from "@/components/OrganizationState";
 
 export default function Home() {
   const { selectedOrgId, orgs, setSelectedOrgId } = useOrgStore();
+  const orgIds = orgs.map((o) => String(o.id));
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [currentView, setCurrentView] = useState<"drive" | "trash">("drive");
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
@@ -101,7 +102,7 @@ export default function Home() {
       try {
         const token = await getToken();
         if (!token) return;
-        const url = await StorageApi.getViewUrl(token, item.id);
+        const url = await StorageApi.getViewUrl(token, item.id, orgIds);
         window.open(url, "_blank");
       } catch (err) {
         console.error("Open failed", err);
@@ -194,7 +195,7 @@ export default function Home() {
     );
     const entries = await Promise.allSettled(
       previewable.map(async (f) => {
-        const url = await StorageApi.getViewUrl(token, f.id);
+        const url = await StorageApi.getViewUrl(token, f.id, orgIds);
         return [f.id, url] as [string, string];
       }),
     );
@@ -279,7 +280,7 @@ export default function Home() {
     try {
       const token = await getToken();
       if (!token) return;
-      await StorageApi.deleteItem(token, selectedFile.id);
+      await StorageApi.deleteItem(token, selectedFile.id, orgIds);
       setSelectedFile(null);
       setModals((prev) => ({ ...prev, delete: false }));
       await loadFiles();
@@ -315,7 +316,7 @@ export default function Home() {
     try {
       const token = await getToken();
       if (!token) return;
-      const url = await StorageApi.getViewUrl(token, item.id);
+      const url = await StorageApi.getViewUrl(token, item.id, orgIds);
       navigator.clipboard.writeText(url);
     } catch (err) {
       console.error("Get link failed", err);
@@ -351,7 +352,7 @@ export default function Home() {
         try {
           const token = await getToken();
           if (!token) return;
-          const url = await StorageApi.getViewUrl(token, item.id);
+          const url = await StorageApi.getViewUrl(token, item.id, orgIds);
           setContextMenuViewUrl(url);
         } catch (err) {
           console.error("Failed to pre-fetch view URL", err);
@@ -386,7 +387,7 @@ export default function Home() {
           try {
             const token = await getToken();
             if (!token) return;
-            const url = await StorageApi.getDownloadUrl(token, item.id);
+            const url = await StorageApi.getDownloadUrl(token, item.id, orgIds);
             const response = await fetch(url);
             const blob = await response.blob();
             const blobUrl = URL.createObjectURL(blob);
