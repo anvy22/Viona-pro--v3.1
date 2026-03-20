@@ -12,6 +12,7 @@ import { discordExecutor } from "../../executions/discord/executor";
 import { slackExecutor } from "../../executions/slack/executor";
 import { whatsappExecutor } from "../../executions/whatsapp/executor";
 import { instagramExecutor } from "../../executions/instagram/executor";
+import { telegramExecutor } from "../../executions/telegram/executor";
 import { aiAgentExecutor } from "../../executions/ai-agent/executor";
 import { chatModelExecutor } from "../../executions/chat-model/executor";
 import { memoryExecutor } from "../../executions/memory/executor";
@@ -40,6 +41,7 @@ export const executorRegistry: Record<NodeType, NodeExecutor<any>> = {
     [NodeType.SLACK]: slackExecutor,
     [NodeType.WHATSAPP]: whatsappExecutor,
     [NodeType.INSTAGRAM]: instagramExecutor,
+    [NodeType.TELEGRAM]: telegramExecutor,
     [NodeType.AI_AGENT]: aiAgentExecutor,
     [NodeType.CHAT_MODEL]: chatModelExecutor,
     [NodeType.MEMORY]: memoryExecutor,

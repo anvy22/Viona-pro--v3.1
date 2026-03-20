@@ -132,6 +132,12 @@ const executionNodes: NodeTypeOption[] = [
         icon: "/logos/instagram.svg",
     },
     {
+        type: NodeType.TELEGRAM,
+        label: "Telegram",
+        description: "Send a Telegram message via Bot API",
+        icon: "/logos/telegram.svg",
+    },
+    {
         type: NodeType.AI_AGENT,
         label: "AI Agent",
         description: "Autonomous agent with tools, memory & chat model",

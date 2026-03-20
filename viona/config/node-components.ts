@@ -13,6 +13,7 @@ import { DiscordNode } from "@/app/(dashboard)/workflows/components/executions/d
 import { SlackNode } from "@/app/(dashboard)/workflows/components/executions/slack/node";
 import { WhatsappNode } from "@/app/(dashboard)/workflows/components/executions/whatsapp/node";
 import { InstagramNode } from "@/app/(dashboard)/workflows/components/executions/instagram/node";
+import { TelegramNode } from "@/app/(dashboard)/workflows/components/executions/telegram/node";
 import { AiAgentNode } from "@/app/(dashboard)/workflows/components/executions/ai-agent/node";
 import { ChatModelNode } from "@/app/(dashboard)/workflows/components/executions/chat-model/node";
 import { MemoryNode } from "@/app/(dashboard)/workflows/components/executions/memory/node";
@@ -41,6 +42,7 @@ export const nodeComponents = {
     [NodeType.SLACK]: SlackNode,
     [NodeType.WHATSAPP]: WhatsappNode,
     [NodeType.INSTAGRAM]: InstagramNode,
+    [NodeType.TELEGRAM]: TelegramNode,
     [NodeType.AI_AGENT]: AiAgentNode,
     [NodeType.CHAT_MODEL]: ChatModelNode,
     [NodeType.MEMORY]: MemoryNode,
