@@ -8,6 +8,7 @@ import { getUserRole, hasPermission, ensureOrganizationMember } from '@/lib/auth
 import { revalidatePath } from 'next/cache';
 import { sendNotification } from '@/lib/rabbitmq';
 import { emitOrderEvent } from '@/lib/workflow-events';
+import { getUsageStats, incrementUsage } from "@/app/(dashboard)/billing/billing-actions";
 
 // Cache user lookup to avoid repeated queries
 async function getOrCreateUser(userId: string) {
@@ -76,6 +77,11 @@ export async function addOrder(orgId: string, newOrder: any) {
 
     // Ensure user is organization member and has proper role
     await ensureOrganizationMember(orgId);
+
+    const usageStats = await getUsageStats(orgId);
+    if (usageStats && !usageStats.orders.allowed) {
+      throw new Error("Monthly order limit reached. Please upgrade your plan to process more orders.");
+    }
 
     // Get user role after ensuring membership
     const role = await getUserRole(orgId);
@@ -230,6 +236,8 @@ export async function addOrder(orgId: string, newOrder: any) {
 
     console.log(`addOrder: Successfully created order for customer ${result.customerName}:`, result);
 
+    await incrementUsage(bigOrgId, "orders");
+
     // ✅ Send notification to order creator
     await sendNotification({
       userId: user.clerk_id,
@@ -298,11 +306,11 @@ export async function addOrder(orgId: string, newOrder: any) {
         throw new Error('Invalid reference');
       }
       if (error.message.includes('timeout')) {
-        throw new Error('Operation timed out. Please try again.');
+        return { success: false, error: 'Operation timed out. Please try again.' };
       }
-      throw error;
+      return { success: false, error: error.message };
     }
-    throw new Error('Failed to add order. Please try again.');
+    return { success: false, error: 'Failed to add order. Please try again.' };
   }
 }
 
@@ -607,20 +615,20 @@ export async function updateOrder(orgId: string, id: string, updatedOrder: any) 
 
     if (error instanceof Error) {
       if (error.message.includes('Cannot convert') && error.message.includes('BigInt')) {
-        throw new Error('Invalid organization or order ID format');
+        return { success: false, error: 'Invalid organization or order ID format' };
       }
       if (error.message.includes('Unique constraint')) {
-        throw new Error('Database constraint violation');
+        return { success: false, error: 'Database constraint violation' };
       }
       if (error.message.includes('Foreign key constraint')) {
-        throw new Error('Invalid reference');
+        return { success: false, error: 'Invalid reference' };
       }
       if (error.message.includes('timeout')) {
-        throw new Error('Operation timed out. Please try again.');
+        return { success: false, error: 'Operation timed out. Please try again.' };
       }
-      throw error;
+      return { success: false, error: error.message };
     }
-    throw new Error('Failed to update order. Please try again.');
+    return { success: false, error: 'Failed to update order. Please try again.' };
   }
 }
 
@@ -748,12 +756,11 @@ export async function deleteOrder(orgId: string, id: string) {
 
     if (error instanceof Error) {
       if (error.message.includes('Cannot convert') && error.message.includes('BigInt')) {
-        throw new Error('Invalid organization or order ID format');
+        return { success: false, error: 'Invalid organization or order ID format' };
       }
-      throw error;
+      return { success: false, error: error.message };
     }
-
-    throw new Error('Failed to delete order. Please try again.');
+    return { success: false, error: 'Failed to delete order. Please try again.' };
   }
 }
 

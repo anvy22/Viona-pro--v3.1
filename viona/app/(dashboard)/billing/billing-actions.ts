@@ -25,6 +25,9 @@ export async function getSubscriptionDetails(orgId: string) {
     const usage = await getUsageForOrg(id);
     const plan = getPlanConfig(subscription.plan);
 
+    const workflowCount = await prisma.workflow.count({ where: { org_id: id, status: "active" } });
+    const memberCount = await prisma.organizationMember.count({ where: { org_id: id } });
+
     return {
       plan: subscription.plan,
       planName: plan.name,
@@ -34,9 +37,9 @@ export async function getSubscriptionDetails(orgId: string) {
       cancelAtPeriodEnd: subscription.cancel_at_period_end,
       stripeCustomerId: subscription.stripe_customer_id,
       usage: {
-        workflows: { current: usage.workflows, limit: plan.limits.workflows },
+        workflows: { current: workflowCount, limit: plan.limits.workflows },
         orders: { current: usage.orders, limit: plan.limits.orders },
-        members: { current: usage.members, limit: plan.limits.members },
+        members: { current: memberCount, limit: plan.limits.members },
         aiRuns: { current: usage.ai_runs, limit: plan.limits.aiRuns },
       },
     };
@@ -57,14 +60,17 @@ export async function getUsageStats(orgId: string) {
     const usage = await getUsageForOrg(id);
     const plan = getPlanConfig(subscription.plan);
 
+    const workflowCount = await prisma.workflow.count({ where: { org_id: id, status: "active" } });
+    const memberCount = await prisma.organizationMember.count({ where: { org_id: id } });
+
     const workflowLimit = plan.limits.workflows;
-    const workflowCheck = checkLimit(usage.workflows, workflowLimit);
+    const workflowCheck = checkLimit(workflowCount, workflowLimit);
 
     return {
       plan: subscription.plan as PlanId,
       planName: plan.name,
       workflows: {
-        current: usage.workflows,
+        current: workflowCount,
         limit: workflowLimit,
         percentage: workflowCheck.percentage,
         allowed: workflowCheck.allowed,
@@ -75,9 +81,9 @@ export async function getUsageStats(orgId: string) {
         ...checkLimit(usage.orders, plan.limits.orders),
       },
       members: {
-        current: usage.members,
+        current: memberCount,
         limit: plan.limits.members,
-        ...checkLimit(usage.members, plan.limits.members),
+        ...checkLimit(memberCount, plan.limits.members),
       },
       aiRuns: {
         current: usage.ai_runs,

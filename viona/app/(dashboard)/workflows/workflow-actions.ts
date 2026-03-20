@@ -5,6 +5,7 @@ import { type Node, type Edge } from "@xyflow/react";
 import { auth } from "@clerk/nextjs/server";
 import { Prisma, NodeType } from "@prisma/client";
 import { enqueueWorkflow } from "@/lib/queue";
+import { getUsageStats } from "@/app/(dashboard)/billing/billing-actions";
 
 
 export type WorkflowWithNodesAndEdges = {
@@ -135,12 +136,19 @@ export async function toggleWorkflowStatus(workflowId: string) {
 
     const current = await prisma.workflow.findUnique({
         where: { id: workflowId },
-        select: { status: true },
+        select: { status: true, org_id: true },
     });
 
     if (!current) throw new Error("Workflow not found");
 
     const newStatus = current.status === "active" ? "draft" : "active";
+
+    if (newStatus === "active") {
+        const usageStats = await getUsageStats(current.org_id.toString());
+        if (usageStats && !usageStats.workflows.allowed) {
+            return { error: "Workflow activation limit reached. Please upgrade your plan to activate more workflows." };
+        }
+    }
 
     await prisma.workflow.update({
         where: { id: workflowId },

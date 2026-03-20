@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createWorkflowWithInitialNode } from "../workflow-actions";
+import { toast } from "sonner";
 
 interface Props {
   open: boolean;
@@ -32,18 +33,25 @@ export function CreateWorkflowModal({
 
     setIsSaving(true);
     try {
-      await createWorkflowWithInitialNode({
+      const result = await createWorkflowWithInitialNode({
         name,
         description: description.trim() || undefined,
         orgId,
       });
 
+      if (result && 'error' in result) {
+        toast.error(result.error as string);
+        return;
+      }
+
       setName("");
       setDescription("");
       onCreated();
       onOpenChange(false);
+      toast.success("Workflow created successfully");
     } catch (error) {
       console.error("Failed to create workflow:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to create workflow");
     } finally {
       setIsSaving(false);
     }

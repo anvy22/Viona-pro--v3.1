@@ -145,7 +145,7 @@ export const Editor = ({ workflowId }: { workflowId: string }) => {
                     <Background />
                     <Controls />
                     <MiniMap
-                        nodeColor={resolvedTheme === 'dark' ? '#1c2720ff' : '#e4e4e7ff'}
+                        nodeColor={resolvedTheme === 'dark' ? '#1c2720ff' : '#4a554cff'}
                         maskColor={resolvedTheme === 'dark' ? 'rgba(16, 44, 24, 1)' : 'rgba(244, 244, 245, 0.6)'}
                     />
                     <Panel position="top-right" >

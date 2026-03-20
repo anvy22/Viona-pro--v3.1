@@ -10,6 +10,7 @@ import { emitOrderEvent } from "@/lib/workflow-events";
 import { decrypt } from "@/lib/encryption";
 import { z } from "zod";
 import ky from "ky";
+import { getUsageStats, incrementUsage } from "@/app/(dashboard)/billing/billing-actions";
 
 Handlebars.registerHelper("json", (context) => {
     const jsonString = JSON.stringify(context, null, 2);
@@ -546,6 +547,13 @@ export const aiAgentExecutor: NodeExecutor<AiAgentData> = async ({ data, nodeId,
 
     // ----- 6. Run agentic loop -----
     try {
+        if (orgId) {
+            const usageStats = await getUsageStats(orgId.toString());
+            if (usageStats && !usageStats.aiRuns.allowed) {
+                throw new Error("AI Agent monthly run limit reached. Please upgrade your plan.");
+            }
+        }
+
         const messages: Array<{ role: "user" | "assistant"; content: string }> = [
             ...recentHistory.map((m) => ({
                 role: m.role as "user" | "assistant",
@@ -561,6 +569,10 @@ export const aiAgentExecutor: NodeExecutor<AiAgentData> = async ({ data, nodeId,
             tools: Object.keys(tools).length > 0 ? tools : undefined,
             stopWhen: stepCountIs(data.maxIterations || 10),
         });
+
+        if (orgId) {
+            await incrementUsage(orgId, "ai_runs");
+        }
 
         // Update memory with the new exchange
         const updatedHistory = [
