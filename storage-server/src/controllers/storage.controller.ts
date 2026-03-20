@@ -87,19 +87,53 @@ export async function upload(req: Request, res: Response) {
       blobName = `${req.user!.id}/${fileId}`;
     }
 
-    const file = await prisma.file.create({
-      data: {
-        id: fileId,
-        name: sku ?? name,
-        type,
-        size: BigInt(size || 0),
-        mimeType,
-        parentId: parentId || null,
-        ownerId: req.user!.id,
-        gcsKey: blobName,
-        ...(resolvedOrgId ? { orgId: resolvedOrgId } : {}),
-      },
-    });
+    // For org inventory images (deterministic blob path), upsert to avoid duplicates.
+    // For regular files (unique blob path), always create.
+    let file;
+    if (resolvedOrgId && sku) {
+      const existing = await prisma.file.findFirst({
+        where: { gcsKey: blobName },
+      });
+      if (existing) {
+        file = await prisma.file.update({
+          where: { id: existing.id },
+          data: {
+            name: sku ?? name,
+            size: BigInt(size || 0),
+            mimeType,
+            updatedAt: new Date(),
+          },
+        });
+      } else {
+        file = await prisma.file.create({
+          data: {
+            id: fileId,
+            name: sku ?? name,
+            type,
+            size: BigInt(size || 0),
+            mimeType,
+            parentId: parentId || null,
+            ownerId: req.user!.id,
+            gcsKey: blobName,
+            orgId: resolvedOrgId,
+          },
+        });
+      }
+    } else {
+      file = await prisma.file.create({
+        data: {
+          id: fileId,
+          name: sku ?? name,
+          type,
+          size: BigInt(size || 0),
+          mimeType,
+          parentId: parentId || null,
+          ownerId: req.user!.id,
+          gcsKey: blobName,
+          ...(resolvedOrgId ? { orgId: resolvedOrgId } : {}),
+        },
+      });
+    }
 
     // Generate a SAS URL with Write permission (valid for 10 minutes)
     const uploadUrl = generateSasUrl(blobName, "cw", 600);
