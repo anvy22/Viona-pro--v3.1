@@ -120,6 +120,18 @@ const executionNodes: NodeTypeOption[] = [
         icon: "/logos/slack.svg",
     },
     {
+        type: NodeType.WHATSAPP,
+        label: "WhatsApp",
+        description: "Send a WhatsApp message via Twilio",
+        icon: "/logos/whatsapp.svg",
+    },
+    {
+        type: NodeType.INSTAGRAM,
+        label: "Instagram",
+        description: "Send an Instagram DM via Meta API",
+        icon: "/logos/instagram.svg",
+    },
+    {
         type: NodeType.AI_AGENT,
         label: "AI Agent",
         description: "Autonomous agent with tools, memory & chat model",

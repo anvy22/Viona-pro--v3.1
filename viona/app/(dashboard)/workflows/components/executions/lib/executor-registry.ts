@@ -10,6 +10,8 @@ import { openAiExecutor } from "../../executions/openai/executor";
 import { anthropicExecutor } from "../../executions/anthropic/executor";
 import { discordExecutor } from "../../executions/discord/executor";
 import { slackExecutor } from "../../executions/slack/executor";
+import { whatsappExecutor } from "../../executions/whatsapp/executor";
+import { instagramExecutor } from "../../executions/instagram/executor";
 import { aiAgentExecutor } from "../../executions/ai-agent/executor";
 import { chatModelExecutor } from "../../executions/chat-model/executor";
 import { memoryExecutor } from "../../executions/memory/executor";
@@ -36,6 +38,8 @@ export const executorRegistry: Record<NodeType, NodeExecutor<any>> = {
     [NodeType.OPENAI]: openAiExecutor,
     [NodeType.DISCORD]: discordExecutor,
     [NodeType.SLACK]: slackExecutor,
+    [NodeType.WHATSAPP]: whatsappExecutor,
+    [NodeType.INSTAGRAM]: instagramExecutor,
     [NodeType.AI_AGENT]: aiAgentExecutor,
     [NodeType.CHAT_MODEL]: chatModelExecutor,
     [NodeType.MEMORY]: memoryExecutor,
