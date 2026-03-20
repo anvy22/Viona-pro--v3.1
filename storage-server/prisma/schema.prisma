@@ -25,6 +25,9 @@ model File {
   mimeType   String?
   gcsKey     String?
 
+  orgId        String?   // viona org_id; null for personal files
+  isOrgFolder  Boolean   @default(false)
+
   parentId   String?
   parent     File?    @relation("FileTree", fields: [parentId], references: [id])
   children   File[]   @relation("FileTree")
@@ -40,4 +43,5 @@ model File {
   updatedAt  DateTime @updatedAt
 
   @@index([ownerId, parentId])
+  @@index([orgId])
 }

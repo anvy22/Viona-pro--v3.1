@@ -34,10 +34,12 @@ export async function listFiles(
   token: string,
   parentId?: string | null,
   trashed = false,
+  orgIds: string[] = [], // optional org IDs to include org files
 ) {
   const params = new URLSearchParams();
   if (parentId) params.set("parentId", parentId);
   if (trashed) params.set("trashed", "true");
+  if (orgIds.length > 0) params.set("orgIds", orgIds.join(","));
   const query = params.toString() ? `?${params.toString()}` : "";
   const res = await apiFetch(token, `/api/files${query}`);
   if (!res.ok) throw new Error("Failed to fetch files");
@@ -196,7 +198,57 @@ export async function copyItem(
   return res.json();
 }
 
+export async function ensureOrgFolder(
+  token: string,
+  orgId: string,
+  orgName: string,
+): Promise<{ rootFolderId: string; orgFolderId: string }> {
+  const res = await apiFetch(token, "/api/files/org-folder", {
+    method: "POST",
+    body: JSON.stringify({ orgId, orgName }),
+  });
+  if (!res.ok) throw new Error("Failed to ensure org folder");
+  return res.json();
+}
 
+export async function uploadInventoryImage(
+  token: string,
+  file: File,
+  orgId: string,
+  sku: string,
+  parentId: string, // the org-name folder's DB id (from ensureOrgFolder)
+) {
+  // 1. Register the file and get a pre-signed Azure SAS URL
+  const uploadRes = await apiFetch(token, "/api/storage/upload", {
+    method: "POST",
+    body: JSON.stringify({
+      name: file.name,
+      type: file.type || "image/jpeg",
+      size: file.size,
+      mimeType: file.type,
+      parentId,
+      orgId,
+      sku,
+    }),
+  });
+  if (!uploadRes.ok) throw new Error("Failed to initiate inventory upload");
+  const { uploadUrl, fileId } = await uploadRes.json();
 
+  // 2. PUT directly to Azure Blob Storage
+  await fetch(uploadUrl, {
+    method: "PUT",
+    headers: {
+      "x-ms-blob-type": "BlockBlob",
+      "Content-Type": file.type,
+    },
+    body: file,
+  });
 
-
+  // 3. Finalize with the storage server
+  const finalizeRes = await apiFetch(token, "/api/storage/finalize", {
+    method: "POST",
+    body: JSON.stringify({ fileId }),
+  });
+  if (!finalizeRes.ok) throw new Error("Failed to finalize inventory upload");
+  return finalizeRes.json(); // { success: true }
+}

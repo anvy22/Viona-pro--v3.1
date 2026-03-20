@@ -150,10 +150,23 @@ export default function Home() {
       setLoading(true);
       const token = await getToken();
       if (!token) return;
+
+      // Ensure org folder hierarchy exists (idempotent — safe to call every load)
+      if (selectedOrgId) {
+        const org = orgs.find((o) => String(o.id) === String(selectedOrgId));
+        if (org) {
+          await StorageApi.ensureOrgFolder(token, String(org.id), org.name);
+        }
+      }
+
+      // Pass all user's org IDs so the server includes org files
+      const orgIds = orgs.map((o) => String(o.id));
+
       const data = await StorageApi.listFiles(
         token,
         currentView === "trash" ? null : currentFolderId,
         currentView === "trash",
+        orgIds,
       );
       setItems(data);
       loadPreviewUrls(data);
@@ -196,7 +209,7 @@ export default function Home() {
 
   useEffect(() => {
     loadFiles();
-  }, [currentFolderId, currentView]); // Re-fetch when folder or view changes
+  }, [currentFolderId, currentView, selectedOrgId]); // Re-fetch when folder, view, or org changes
 
   const handleCreateFolder = async (name: string) => {
     try {

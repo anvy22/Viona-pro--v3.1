@@ -53,7 +53,7 @@ function generateSasUrl(
 
 export async function upload(req: Request, res: Response) {
   try {
-    const { name, type, size, mimeType, parentId } =
+    const { name, type, size, mimeType, parentId, orgId, sku } =
       req.body as UploadRequestBody;
 
     if (!name || !type) {
@@ -61,18 +61,28 @@ export async function upload(req: Request, res: Response) {
     }
 
     const fileId = crypto.randomUUID();
-    const blobName = `${req.user!.id}/${fileId}`;
+
+    // Org inventory images get a deterministic, SKU-based blob path.
+    // Re-uploading the same SKU overwrites the blob automatically.
+    let blobName: string;
+    if (orgId && sku) {
+      const ext = name.split(".").pop() ?? "jpg";
+      blobName = `organizations/${orgId}/${sku}.${ext}`;
+    } else {
+      blobName = `${req.user!.id}/${fileId}`;
+    }
 
     const file = await prisma.file.create({
       data: {
         id: fileId,
-        name,
+        name: sku ?? name,
         type,
         size: BigInt(size || 0),
         mimeType,
         parentId: parentId || null,
         ownerId: req.user!.id,
         gcsKey: blobName,
+        ...(orgId ? { orgId: String(orgId) } : {}),
       },
     });
 
@@ -98,8 +108,15 @@ export async function finalize(req: Request, res: Response) {
 
 export async function download(req: Request, res: Response) {
   try {
+    const userOrgIds = ((req.query.orgIds as string) || "")
+      .split(",")
+      .filter(Boolean);
+
     const file = await prisma.file.findFirst({
-      where: { id: req.params.id, ownerId: req.user!.id },
+      where: {
+        id: req.params.id,
+        OR: [{ ownerId: req.user!.id }, { orgId: { in: userOrgIds } }],
+      },
     });
 
     if (!file) {
@@ -122,11 +139,19 @@ export async function download(req: Request, res: Response) {
 
 export async function view(req: Request, res: Response) {
   try {
+    const userOrgIds = ((req.query.orgIds as string) || "")
+      .split(",")
+      .filter(Boolean);
+
     const file = await prisma.file.findFirst({
-      where: { id: req.params.id, ownerId: req.user!.id },
+      where: {
+        id: req.params.id,
+        OR: [{ ownerId: req.user!.id }, { orgId: { in: userOrgIds } }],
+      },
     });
     if (!file) return res.status(404).json({ error: "File not found" });
-    if (!file.gcsKey) return res.status(400).json({ error: "File has no storage key" });
+    if (!file.gcsKey)
+      return res.status(400).json({ error: "File has no storage key" });
 
     const viewUrl = generateSasUrl(file.gcsKey, "r", 600, "inline");
     res.json({ viewUrl });
@@ -135,4 +160,3 @@ export async function view(req: Request, res: Response) {
     res.status(500).json({ error: "Failed to create view URL" });
   }
 }
-

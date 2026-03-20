@@ -3,18 +3,127 @@ import { prisma } from "../utils/prisma";
 import type { FileUpdateData, AuthenticatedRequest } from "../types/interfaces";
 import { blobServiceClient, CONTAINER_NAME } from "../services/azure.service";
 
+// ─── Helper 1: global "organizations" root folder ────────────────────────────
+async function getOrEnsureRootOrgFolder(): Promise<{ id: string }> {
+  let root = await prisma.file.findFirst({
+    where: {
+      name: "organizations",
+      parentId: null,
+      isOrgFolder: false,
+      isTrashed: false,
+    },
+  });
+
+  if (!root) {
+    root = await prisma.file.create({
+      data: {
+        name: "organizations",
+        type: "folder",
+        ownerId: "system", // FK: must exist in storage_users (see Pre-Flight)
+      },
+    });
+  }
+  return root;
+}
+
+// ─── Helper 2: per-org subfolder inside "organizations/" ─────────────────────
+async function getOrEnsureOrgFolder(
+  orgId: string,
+  orgName: string,
+  rootFolderId: string,
+): Promise<{ id: string }> {
+  let orgFolder = await prisma.file.findFirst({
+    where: {
+      orgId,
+      isOrgFolder: true,
+      parentId: rootFolderId,
+      isTrashed: false,
+    },
+  });
+
+  if (!orgFolder) {
+    orgFolder = await prisma.file.create({
+      data: {
+        name: orgName,
+        type: "folder",
+        isOrgFolder: true,
+        orgId,
+        parentId: rootFolderId,
+        ownerId: "system",
+      },
+    });
+  }
+  return orgFolder;
+}
+
+export async function ensureOrgFolder(req: Request, res: Response) {
+  try {
+    const { orgId, orgName } = req.body;
+    if (!orgId || !orgName) {
+      return res.status(400).json({ error: "orgId and orgName are required" });
+    }
+
+    const root = await getOrEnsureRootOrgFolder();
+    const orgFolder = await getOrEnsureOrgFolder(
+      String(orgId),
+      orgName,
+      root.id,
+    );
+
+    res.json({
+      rootFolderId: root.id, // id of the "organizations" folder
+      orgFolderId: orgFolder.id, // id of the "Acme Corp" folder
+    });
+  } catch (error) {
+    console.error("Error ensuring org folder:", error);
+    res.status(500).json({ error: "Failed to ensure org folder" });
+  }
+}
+
 export async function list(req: Request, res: Response) {
   try {
     const isTrashed = req.query.trashed === "true";
     const parentId = (req.query.parentId as string) || null;
-    const files = await prisma.file.findMany({
+    const orgIds = ((req.query.orgIds as string) || "")
+      .split(",")
+      .filter(Boolean);
+
+    // Personal files: exclude isOrgFolder rows so they don't show up twice
+    const personalFiles = await prisma.file.findMany({
       where: {
         ownerId: req.user!.id,
+        isOrgFolder: { not: true },
+        orgId: null, // never show org-owned files under personal view
         ...(isTrashed ? {} : { parentId }),
         isTrashed,
       },
     });
-    res.json(files);
+
+    let orgFiles: typeof personalFiles = [];
+
+    if (orgIds.length > 0 && !isTrashed) {
+      orgFiles = await prisma.file.findMany({
+        where: {
+          OR: [
+            // Always show the global "organizations/" root at My Drive level
+            {
+              name: "organizations",
+              parentId: null,
+              isOrgFolder: false,
+              isTrashed: false,
+            },
+            // Show org subfolders and org files only at their correct parentId
+            {
+              orgId: { in: orgIds },
+              isTrashed: false,
+              parentId, // scoped to current folder, same as personal
+            },
+          ],
+        },
+      });
+    }
+
+    res.json([...personalFiles, ...orgFiles]);
   } catch (error) {
     console.error("Error listing files:", error);
     res.status(500).json({ error: "Failed to list files" });
@@ -77,34 +186,44 @@ export async function update(req: Request, res: Response) {
   }
 }
 
-// Helper: recursively delete all children of a folder
-async function deleteRecursive(folderId: string, ownerId: string) {
-  // Find all direct children
+// ─── FIXED: org children are found by orgId, not only ownerId ─────────────────
+async function deleteRecursive(
+  folderId: string,
+  ownerId: string,
+  orgId?: string | null,
+) {
   const children = await prisma.file.findMany({
-    where: { parentId: folderId, ownerId },
+    where: {
+      parentId: folderId,
+      OR: [{ ownerId }, ...(orgId ? [{ orgId }] : [])],
+    },
   });
 
   for (const child of children) {
     if (child.type === "folder") {
-      // Recurse into sub-folders
-      await deleteRecursive(child.id, ownerId);
+      await deleteRecursive(child.id, ownerId, child.orgId);
     } else {
-      // Delete Azure blob for files
       if (child.gcsKey) {
         const containerClient =
           blobServiceClient.getContainerClient(CONTAINER_NAME);
         await containerClient.getBlockBlobClient(child.gcsKey).deleteIfExists();
       }
     }
-    // Delete the child record from DB
     await prisma.file.delete({ where: { id: child.id } });
   }
 }
 
 export async function remove(req: Request, res: Response) {
   try {
+    const userOrgIds = ((req.query.orgIds as string) || "")
+      .split(",")
+      .filter(Boolean);
+
     const file = await prisma.file.findFirst({
-      where: { id: req.params.id, ownerId: req.user!.id },
+      where: {
+        id: req.params.id,
+        OR: [{ ownerId: req.user!.id }, { orgId: { in: userOrgIds } }],
+      },
     });
 
     if (!file) {
@@ -112,10 +231,8 @@ export async function remove(req: Request, res: Response) {
     }
 
     if (file.type === "folder") {
-      // Recursively delete everything inside before deleting folder itself
-      await deleteRecursive(file.id, req.user!.id);
+      await deleteRecursive(file.id, req.user!.id, file.orgId ?? null);
     } else {
-      // Delete the Azure blob for single files
       if (file.gcsKey) {
         const containerClient =
           blobServiceClient.getContainerClient(CONTAINER_NAME);
@@ -123,7 +240,6 @@ export async function remove(req: Request, res: Response) {
       }
     }
 
-    // Delete the folder/file itself
     await prisma.file.delete({ where: { id: file.id } });
     res.sendStatus(204);
   } catch (error) {
