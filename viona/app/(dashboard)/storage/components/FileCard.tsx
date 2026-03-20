@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 interface FileCardProps {
   file: FileItem;
   selected?: boolean;
+  previewUrl?: string;
   onClick?: () => void;
   onDoubleClick?: () => void;
   onContextMenu?: (e: React.MouseEvent) => void;
@@ -13,12 +14,16 @@ interface FileCardProps {
 export default function FileCard({
   file,
   selected,
+  previewUrl,
   onClick,
   onDoubleClick,
   onContextMenu,
 }: FileCardProps) {
   const Icon = getIconForType(file.type);
   const isImage = file.type === "image" || file.type.startsWith("image/");
+  const isPdf = file.type === "pdf" || file.type === "application/pdf";
+  const isVideo = file.type === "video" || file.type.startsWith("video/");
+
 
   return (
     <div
@@ -55,43 +60,63 @@ export default function FileCard({
       )}
     >
       {/* Thumbnail Section */}
-      <div className="relative aspect-[4/3] bg-white dark:bg-muted/30 w-full flex items-center justify-center overflow-hidden border-b border-slate-100 dark:border-border">
-        {isImage ? (
-          <div className="w-full h-full bg-gradient-to-br from-slate-100 to-slate-200 dark:from-muted/50 dark:to-muted group-hover:scale-105 transition-transform duration-500 flex items-center justify-center">
-            <Icon className="w-10 h-10 text-slate-400 dark:text-muted-foreground" />
-          </div>
-        ) : (
-          <div className="w-full h-full flex items-center justify-center group-hover:scale-105 transition-transform duration-500">
-            <Icon
-              className={cn(
-                "w-12 h-12",
-                file.type === "pdf" || file.type === "application/pdf"
-                  ? "text-red-500"
-                  : file.type === "video" || file.type.startsWith("video/")
-                    ? "text-purple-500"
-                    : file.type === "audio" || file.type.startsWith("audio/")
-                      ? "text-yellow-500"
-                      : file.type.startsWith("image/")
-                        ? "text-green-500"
-                        : "text-blue-500",
-              )}
-            />
-          </div>
+<div className="relative aspect-[4/3] bg-white dark:bg-muted/30 w-full flex items-center justify-center overflow-hidden border-b border-slate-100 dark:border-border">
+  {previewUrl && isImage ? (
+    <img
+      src={previewUrl}
+      alt={file.name}
+      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+    />
+  ) : previewUrl && isPdf ? (
+    <iframe
+      src={`${previewUrl}#toolbar=0&navpanes=0&scrollbar=0`}
+      className="w-full h-full pointer-events-none"
+      title={file.name}
+    />
+  ) : previewUrl && isVideo ? (
+    <video
+      src={previewUrl}
+      className="w-full h-full object-cover"
+      muted
+      preload="metadata"
+    />
+  ) : (
+    <div className={cn(
+      "w-full h-full flex items-center justify-center group-hover:scale-105 transition-transform duration-500",
+      isImage && "bg-gradient-to-br from-slate-100 to-slate-200 dark:from-muted/50 dark:to-muted"
+    )}>
+      <Icon
+        className={cn(
+          "w-12 h-12",
+          file.type === "pdf" || file.type === "application/pdf"
+            ? "text-red-500"
+            : file.type === "video" || file.type.startsWith("video/")
+              ? "text-purple-500"
+              : file.type === "audio" || file.type.startsWith("audio/")
+                ? "text-yellow-500"
+                : file.type.startsWith("image/")
+                  ? "text-green-500"
+                  : "text-blue-500",
         )}
+      />
+    </div>
+  )}
 
-        {/* Context Menu Button */}
-        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onContextMenu?.(e);
-            }}
-            className="p-1 bg-white/90 dark:bg-black/50 hover:bg-white dark:hover:bg-black/70 text-slate-700 dark:text-white rounded backdrop-blur-sm border border-slate-200 dark:border-white/10 shadow-sm"
-          >
-            <MoreVertical className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
+  {/* Context Menu Button */}
+  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onContextMenu?.(e);
+      }}
+      className="p-1 bg-white/90 dark:bg-black/50 hover:bg-white dark:hover:bg-black/70 text-slate-700 dark:text-white rounded backdrop-blur-sm border border-slate-200 dark:border-white/10 shadow-sm"
+    >
+      <MoreVertical className="w-4 h-4" />
+    </button>
+  </div>
+</div>
+
 
       {/* Details Section */}
       <div className="p-3">

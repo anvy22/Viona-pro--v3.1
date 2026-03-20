@@ -39,6 +39,7 @@ export default function Home() {
   // Data State
   const [items, setItems] = useState<FileItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
 
   // Clipboard state for copy/cut/paste
   const [clipboard, setClipboard] = useState<{
@@ -110,14 +111,14 @@ export default function Home() {
 
   const handleFolderClick = (folder: FileItem) => {
     setCurrentFolderId(folder.id);
-    setSearchQuery(""); 
+    setSearchQuery("");
     setFolderHistory((prev) => [...prev, { id: folder.id, name: folder.name }]);
     setSelectedFile(null);
   };
 
   const navigateToBreadcrumb = (index: number) => {
     const newHistory = folderHistory.slice(0, index + 1);
-    setSearchQuery(""); 
+    setSearchQuery("");
     setFolderHistory(newHistory);
     setCurrentFolderId(newHistory[newHistory.length - 1].id);
     setSelectedFile(null);
@@ -155,6 +156,7 @@ export default function Home() {
         currentView === "trash",
       );
       setItems(data);
+      loadPreviewUrls(data);
       const usageData = await StorageApi.getUsage(token);
       setUsagePercent(usageData.percentage);
       setUsedBytes(usageData.usedBytes);
@@ -163,6 +165,33 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
+  };
+  const loadPreviewUrls = async (files: FileItem[]) => {
+    const token = await getToken();
+    if (!token) return;
+    const previewable = files.filter(
+      (f) =>
+        f.type !== "folder" &&
+        (f.type === "image" ||
+          f.type.startsWith("image/") ||
+          f.type === "pdf" ||
+          f.type === "application/pdf" ||
+          f.type === "video" ||
+          f.type.startsWith("video/")),
+    );
+    const entries = await Promise.allSettled(
+      previewable.map(async (f) => {
+        const url = await StorageApi.getViewUrl(token, f.id);
+        return [f.id, url] as [string, string];
+      }),
+    );
+    const map: Record<string, string> = {};
+    for (const result of entries) {
+      if (result.status === "fulfilled") {
+        map[result.value[0]] = result.value[1];
+      }
+    }
+    setPreviewUrls(map);
   };
 
   useEffect(() => {
@@ -432,8 +461,8 @@ export default function Home() {
   if (orgs.length === 0 || !selectedOrgId) {
     return (
       <div className="flex flex-1 min-h-0 relative">
-        <OrganizationState 
-          hasOrganizations={orgs.length > 0} 
+        <OrganizationState
+          hasOrganizations={orgs.length > 0}
           hasSelectedOrg={!!selectedOrgId}
           orgs={orgs}
           selectedOrgId={selectedOrgId}
@@ -446,275 +475,254 @@ export default function Home() {
   }
 
   return (
-          <div className="flex-1 overflow-y-auto relative ">
-            <div className="p-4 md:p-6">
-              {loading && (
-                <div className="fixed top-[70px] left-0 right-0 flex justify-center text-gray-400 text-sm pointer-events-none z-50">
-                  Loading...
-                </div>
-              )}
-
-              {/* ... inputs/nav ... */}
-              <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                onChange={handleFileUpload}
-              />
-
-              <div className="flex flex-col gap-1 mb-5">
-
-                <div className="flex items-center justify-between">
-                  {/* H1 color fixed */}
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {searchQuery
-                      ? `Search results for "${searchQuery}"`
-                      : folderHistory[folderHistory.length - 1].name}
-                  </h1>
-                  <span className="text-sm text-gray-500">
-                    {currentItems.length} items
-                  </span>
-                  
-                </div>
-                <br />
-                <nav className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                  <button
-                    onClick={handleBack}
-                    disabled={
-                      folderHistory.length <= 1 &&
-                      currentView !== "trash" &&
-                      !searchQuery
-                    }
-                    className={cn(
-                      "p-1 rounded-full transition-colors",
-                      // Background colors fixed for light/dark
-                      "hover:bg-gray-200 dark:hover:bg-white/5",
-                      folderHistory.length <= 1 &&
-                        currentView !== "trash" &&
-                        !searchQuery
-                        ? "opacity-30 cursor-not-allowed"
-                        : // Text colors fixed for light/dark
-                          "text-gray-600 dark:text-gray-200",
-                    )}
-                    title="Go Back"
-                  >
-                    <ArrowLeft className="w-5 h-5" />
-                  </button>
-                  <div className="w-px h-4 bg-gray-300 dark:bg-sidebar-border" />
-
-                  {folderHistory.map((item, index) => (
-                    <button
-                      key={index}
-                      onClick={() => navigateToBreadcrumb(index)}
-                      className={cn(
-                        "transition-colors px-1",
-                        // Hover text color fixed
-                        "hover:text-gray-900 dark:hover:text-white",
-                        index === folderHistory.length - 1
-                          ? // Active text color fixed
-                            "text-gray-900 dark:text-white font-medium"
-                          : "",
-                      )}
-                    >
-                      {item.name} {index < folderHistory.length - 1 && " / "}
-                    </button>
-                  ))}
-                </nav>
-              </div>
-
-              <Toolbar
-                viewMode={viewMode}
-                onViewChange={setViewMode}
-                onNewFolder={() =>
-                  setModals((prev) => ({ ...prev, newFolder: true }))
-                }
-                onUpload={handleUploadClick}
-                onToggleDetails={() =>
-                  setModals((prev) => ({ ...prev, details: true }))
-                }
-                isDetailsOpen={false}
-                onRename={() =>
-                  setModals((prev) => ({ ...prev, rename: true }))
-                }
-                onDelete={() =>
-                  setModals((prev) => ({ ...prev, delete: true }))
-                }
-                onCopyLink={handleCopyLink}
-                onTrashClick={handleTrashClick}
-                hasSelection={!!selectedFile}
-                pageView={currentView}
-                onEmptyTrash={() =>
-                  setModals((prev) => ({ ...prev, emptyTrash: true }))
-                }
-                onRestore={handleRestore}
-                onRestoreAll={() =>
-                  setModals((prev) => ({ ...prev, restoreAll: true }))
-                }
-                onDeleteForever={handleDeleteForever}
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-                usagePercent={usagePercent}
-                usedBytes={usedBytes}
-                clipboardItemName={clipboard?.item.name ?? null}
-                onPaste={handlePaste}
-              />
-
-              {viewMode === "grid" ? (
-                <div
-                  className="flex-1 overflow-y-auto min-h-0 space-y-8 pb-10"
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                  }}
-                >
-                  {currentFolders.length > 0 && (
-                    <section>
-                      {/* Section Header Fixed */}
-                      <br />
-                      <h2 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-4 flex items-center gap-2">
-                        Folders
-                        <span className="bg-gray-100 dark:bg-white/5 text-xs px-2 py-0.5 rounded-full text-gray-600 dark:text-gray-500">
-                          {currentFolders.length}
-                        </span>
-                      </h2>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {currentFolders.map((folder) => (
-                          <FolderCard
-                            key={folder.id}
-                            folder={folder}
-                            selected={selectedFile?.id === folder.id}
-                            onClick={() => handleSelect(folder)}
-                            onDoubleClick={() => handleFolderClick(folder)}
-                            onContextMenu={(e) => handleContextMenu(e, folder)}
-                          />
-                        ))}
-                      </div>
-                    </section>
-                  )}
-
-                  {currentFiles.length > 0 && (
-                    <section>
-                      {/* Section Header Fixed */}
-                      <h2 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-4 flex items-center gap-2">
-                        Files
-                        <span className="bg-gray-100 dark:bg-white/5 text-xs px-2 py-0.5 rounded-full text-gray-600 dark:text-gray-500">
-                          {currentFiles.length}
-                        </span>
-                      </h2>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {currentFiles.map((file) => (
-                          <FileCard
-                            key={file.id}
-                            file={file}
-                            selected={selectedFile?.id === file.id}
-                            onClick={() => handleSelect(file)}
-                            onDoubleClick={() => handleOpen(file)}
-                            onContextMenu={(e) => handleContextMenu(e, file)}
-                          />
-                        ))}
-                      </div>
-                    </section>
-                  )}
-
-                  {currentItems.length === 0 && (
-                    <div className="flex-1 flex items-center justify-center text-gray-500 flex-col gap-2 mt-20">
-                      <div className="text-lg font-medium">
-                        This folder is empty
-                      </div>
-                      <div className="text-sm">
-                        Use the "New Folder" button to create one
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="flex-1 overflow-y-auto min-h-0 pb-10 bg-card rounded-xl border border-border">
-                  <FileList
-                    items={currentItems}
-                    selectedId={selectedFile?.id}
-                    onSelect={handleSelect}
-                    onDoubleClick={handleOpen}
-                    onContextMenu={handleContextMenu}
-                  />
-                </div>
-              )}
-
-              {/* Modals and Overlays */}
-              <NewFolderDialog
-                isOpen={modals.newFolder}
-                onClose={() =>
-                  setModals((prev) => ({ ...prev, newFolder: false }))
-                }
-                onCreate={handleCreateFolder}
-              />
-
-              <RenameDialog
-                isOpen={modals.rename}
-                onClose={() =>
-                  setModals((prev) => ({ ...prev, rename: false }))
-                }
-                onRename={handleRename}
-                currentName={selectedFile?.name || ""}
-              />
-
-              <DeleteDialog
-                isOpen={modals.delete}
-                onClose={() =>
-                  setModals((prev) => ({ ...prev, delete: false }))
-                }
-                onDelete={
-                  currentView === "trash" ? handleDeleteForever : handleDelete
-                }
-                itemName={selectedFile?.name || ""}
-              />
-              <DeleteDialog
-                isOpen={modals.emptyTrash}
-                onClose={() =>
-                  setModals((prev) => ({ ...prev, emptyTrash: false }))
-                }
-                onDelete={handleEmptyTrash}
-                itemName=""
-                title="Empty Trash?"
-                description="This will permanently delete all items in Trash. This cannot be undone."
-                confirmLabel="Empty Trash"
-                confirmClass="bg-red-500 hover:bg-red-600"
-              />
-
-              <DeleteDialog
-                isOpen={modals.restoreAll}
-                onClose={() =>
-                  setModals((prev) => ({ ...prev, restoreAll: false }))
-                }
-                onDelete={handleRestoreAll}
-                itemName=""
-                title="Restore All Items?"
-                description="This will restore all trashed items back to My Drive."
-                confirmLabel="Restore All"
-                confirmClass="bg-emerald-500 hover:bg-emerald-600"
-              />
-
-              <DetailsDialog
-                isOpen={modals.details}
-                onClose={() =>
-                  setModals((prev) => ({ ...prev, details: false }))
-                }
-                file={selectedFile}
-                onCopyLink={() =>
-                  selectedFile && handleContextCopyLink(selectedFile)
-                }
-              />
-
-              {contextMenu && (
-                <ContextMenu
-                  x={contextMenu.x}
-                  y={contextMenu.y}
-                  onClose={() => setContextMenu(null)}
-                  onAction={handleContextMenuAction}
-                  isTrashed={contextMenu.item.isTrashed}
-                  clipboardItem={clipboard?.item}
-                  clipboardOp={clipboard?.operation}
-                />
-              )}
-            </div>
+    <div className="flex-1 overflow-y-auto relative ">
+      <div className="p-4 md:p-6">
+        {loading && (
+          <div className="fixed top-[70px] left-0 right-0 flex justify-center text-gray-400 text-sm pointer-events-none z-50">
+            Loading...
           </div>
+        )}
+
+        {/* ... inputs/nav ... */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          className="hidden"
+          onChange={handleFileUpload}
+        />
+
+        <div className="flex flex-col gap-1 mb-5">
+          <div className="flex items-center justify-between">
+            {/* H1 color fixed */}
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              {searchQuery
+                ? `Search results for "${searchQuery}"`
+                : folderHistory[folderHistory.length - 1].name}
+            </h1>
+            <span className="text-sm text-gray-500">
+              {currentItems.length} items
+            </span>
+          </div>
+          <br />
+          <nav className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+            <button
+              onClick={handleBack}
+              disabled={
+                folderHistory.length <= 1 &&
+                currentView !== "trash" &&
+                !searchQuery
+              }
+              className={cn(
+                "p-1 rounded-full transition-colors",
+                // Background colors fixed for light/dark
+                "hover:bg-gray-200 dark:hover:bg-white/5",
+                folderHistory.length <= 1 &&
+                  currentView !== "trash" &&
+                  !searchQuery
+                  ? "opacity-30 cursor-not-allowed"
+                  : // Text colors fixed for light/dark
+                    "text-gray-600 dark:text-gray-200",
+              )}
+              title="Go Back"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div className="w-px h-4 bg-gray-300 dark:bg-sidebar-border" />
+
+            {folderHistory.map((item, index) => (
+              <button
+                key={index}
+                onClick={() => navigateToBreadcrumb(index)}
+                className={cn(
+                  "transition-colors px-1",
+                  // Hover text color fixed
+                  "hover:text-gray-900 dark:hover:text-white",
+                  index === folderHistory.length - 1
+                    ? // Active text color fixed
+                      "text-gray-900 dark:text-white font-medium"
+                    : "",
+                )}
+              >
+                {item.name} {index < folderHistory.length - 1 && " / "}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        <Toolbar
+          viewMode={viewMode}
+          onViewChange={setViewMode}
+          onNewFolder={() =>
+            setModals((prev) => ({ ...prev, newFolder: true }))
+          }
+          onUpload={handleUploadClick}
+          onToggleDetails={() =>
+            setModals((prev) => ({ ...prev, details: true }))
+          }
+          isDetailsOpen={false}
+          onRename={() => setModals((prev) => ({ ...prev, rename: true }))}
+          onDelete={() => setModals((prev) => ({ ...prev, delete: true }))}
+          onCopyLink={handleCopyLink}
+          onTrashClick={handleTrashClick}
+          hasSelection={!!selectedFile}
+          pageView={currentView}
+          onEmptyTrash={() =>
+            setModals((prev) => ({ ...prev, emptyTrash: true }))
+          }
+          onRestore={handleRestore}
+          onRestoreAll={() =>
+            setModals((prev) => ({ ...prev, restoreAll: true }))
+          }
+          onDeleteForever={handleDeleteForever}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          usagePercent={usagePercent}
+          usedBytes={usedBytes}
+          clipboardItemName={clipboard?.item.name ?? null}
+          onPaste={handlePaste}
+        />
+
+        {viewMode === "grid" ? (
+          <div
+            className="flex-1 overflow-y-auto min-h-0 space-y-8 pb-10"
+            onContextMenu={(e) => {
+              e.preventDefault();
+            }}
+          >
+            {currentFolders.length > 0 && (
+              <section>
+                {/* Section Header Fixed */}
+                <br />
+                <h2 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-4 flex items-center gap-2">
+                  Folders
+                  <span className="bg-gray-100 dark:bg-white/5 text-xs px-2 py-0.5 rounded-full text-gray-600 dark:text-gray-500">
+                    {currentFolders.length}
+                  </span>
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {currentFolders.map((folder) => (
+                    <FolderCard
+                      key={folder.id}
+                      folder={folder}
+                      selected={selectedFile?.id === folder.id}
+                      onClick={() => handleSelect(folder)}
+                      onDoubleClick={() => handleFolderClick(folder)}
+                      onContextMenu={(e) => handleContextMenu(e, folder)}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {currentFiles.length > 0 && (
+              <section>
+                {/* Section Header Fixed */}
+                <h2 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-4 flex items-center gap-2">
+                  Files
+                  <span className="bg-gray-100 dark:bg-white/5 text-xs px-2 py-0.5 rounded-full text-gray-600 dark:text-gray-500">
+                    {currentFiles.length}
+                  </span>
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {currentFiles.map((file) => (
+                    <FileCard
+                      key={file.id}
+                      file={file}
+                      previewUrl={previewUrls[file.id]}
+                      selected={selectedFile?.id === file.id}
+                      onClick={() => handleSelect(file)}
+                      onDoubleClick={() => handleOpen(file)}
+                      onContextMenu={(e) => handleContextMenu(e, file)}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {currentItems.length === 0 && (
+              <div className="flex-1 flex items-center justify-center text-gray-500 flex-col gap-2 mt-20">
+                <div className="text-lg font-medium">This folder is empty</div>
+                <div className="text-sm">
+                  Use the "New Folder" button to create one
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto min-h-0 pb-10 bg-card rounded-xl border border-border">
+            <FileList
+              items={currentItems}
+              selectedId={selectedFile?.id}
+              onSelect={handleSelect}
+              onDoubleClick={handleOpen}
+              onContextMenu={handleContextMenu}
+            />
+          </div>
+        )}
+
+        {/* Modals and Overlays */}
+        <NewFolderDialog
+          isOpen={modals.newFolder}
+          onClose={() => setModals((prev) => ({ ...prev, newFolder: false }))}
+          onCreate={handleCreateFolder}
+        />
+
+        <RenameDialog
+          isOpen={modals.rename}
+          onClose={() => setModals((prev) => ({ ...prev, rename: false }))}
+          onRename={handleRename}
+          currentName={selectedFile?.name || ""}
+        />
+
+        <DeleteDialog
+          isOpen={modals.delete}
+          onClose={() => setModals((prev) => ({ ...prev, delete: false }))}
+          onDelete={
+            currentView === "trash" ? handleDeleteForever : handleDelete
+          }
+          itemName={selectedFile?.name || ""}
+        />
+        <DeleteDialog
+          isOpen={modals.emptyTrash}
+          onClose={() => setModals((prev) => ({ ...prev, emptyTrash: false }))}
+          onDelete={handleEmptyTrash}
+          itemName=""
+          title="Empty Trash?"
+          description="This will permanently delete all items in Trash. This cannot be undone."
+          confirmLabel="Empty Trash"
+          confirmClass="bg-red-500 hover:bg-red-600"
+        />
+
+        <DeleteDialog
+          isOpen={modals.restoreAll}
+          onClose={() => setModals((prev) => ({ ...prev, restoreAll: false }))}
+          onDelete={handleRestoreAll}
+          itemName=""
+          title="Restore All Items?"
+          description="This will restore all trashed items back to My Drive."
+          confirmLabel="Restore All"
+          confirmClass="bg-emerald-500 hover:bg-emerald-600"
+        />
+
+        <DetailsDialog
+          isOpen={modals.details}
+          onClose={() => setModals((prev) => ({ ...prev, details: false }))}
+          file={selectedFile}
+          onCopyLink={() => selectedFile && handleContextCopyLink(selectedFile)}
+        />
+
+        {contextMenu && (
+          <ContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            onClose={() => setContextMenu(null)}
+            onAction={handleContextMenuAction}
+            isTrashed={contextMenu.item.isTrashed}
+            clipboardItem={clipboard?.item}
+            clipboardOp={clipboard?.operation}
+          />
+        )}
+      </div>
+    </div>
   );
 }

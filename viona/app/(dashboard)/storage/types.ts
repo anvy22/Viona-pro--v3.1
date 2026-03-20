@@ -12,6 +12,7 @@ export interface FileItem {
     createdAt?: string;
     updatedAt?: string;
     owner?: string;
+    previewUrl?: string;   // signed URL for thumbnail/preview
 }
 
 export const getIconForType = (type: string) => {
