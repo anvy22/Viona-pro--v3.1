@@ -81,10 +81,8 @@ export default function Home() {
         )
       : items.filter((item) => {
           if (searchQuery) {
-            return (
-              !item.isTrashed &&
-              item.name.toLowerCase().includes(searchQuery.toLowerCase())
-            );
+            // Items are already filtered by the server; just exclude trashed
+            return !item.isTrashed;
           }
           return item.parentId === currentFolderId && !item.isTrashed;
         });
@@ -212,6 +210,34 @@ export default function Home() {
     loadFiles();
   }, [currentFolderId, currentView, selectedOrgId]); // Re-fetch when folder, view, or org changes
 
+  // When searchQuery changes, fire a server-side search so we get results
+  // from ALL nested folders, not just the currently loaded folder level.
+  useEffect(() => {
+    if (!searchQuery) {
+      // Search cleared — reload the current folder normally
+      loadFiles();
+      return;
+    }
+    (async () => {
+      try {
+        const token = await getToken();
+        if (!token) return;
+        const orgIds = orgs.map((o) => String(o.id));
+        const data = await StorageApi.listFiles(
+          token,
+          null, // no parentId — search globally across all folders
+          false,
+          orgIds,
+          searchQuery, // server filters by name
+        );
+        setItems(data);
+        loadPreviewUrls(data);
+      } catch (err) {
+        console.error("Search failed", err);
+      }
+    })();
+  }, [searchQuery]);
+
   const handleCreateFolder = async (name: string) => {
     try {
       const token = await getToken();
@@ -241,7 +267,7 @@ export default function Home() {
     try {
       const token = await getToken();
       if (!token) return;
-      await StorageApi.trashItem(token, selectedFile.id);
+      await StorageApi.trashItem(token, selectedFile.id, orgIds);
       setSelectedFile(null);
       setModals((prev) => ({ ...prev, delete: false }));
       await loadFiles();
@@ -254,7 +280,7 @@ export default function Home() {
     if (!selectedFile) return;
     const token = await getToken();
     if (!token) return;
-    await StorageApi.restoreItem(token, selectedFile.id);
+    await StorageApi.restoreItem(token, selectedFile.id, orgIds);
     setItems((prev) =>
       prev.map((item) =>
         item.id === selectedFile.id ? { ...item, isTrashed: false } : item,
@@ -267,7 +293,7 @@ export default function Home() {
     try {
       const token = await getToken();
       if (!token) return;
-      await StorageApi.emptyTrash(token);
+      await StorageApi.emptyTrash(token, orgIds);
       setModals((prev) => ({ ...prev, emptyTrash: false }));
       await loadFiles();
     } catch (err) {
@@ -295,7 +321,9 @@ export default function Home() {
       if (!token) return;
       const trashedItems = items.filter((item) => item.isTrashed);
       await Promise.all(
-        trashedItems.map((item) => StorageApi.restoreItem(token, item.id)),
+        trashedItems.map((item) =>
+          StorageApi.restoreItem(token, item.id, orgIds),
+        ),
       );
       setModals((prev) => ({ ...prev, restoreAll: false }));
       await loadFiles();

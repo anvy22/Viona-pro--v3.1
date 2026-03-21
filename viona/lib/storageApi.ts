@@ -35,11 +35,13 @@ export async function listFiles(
   parentId?: string | null,
   trashed = false,
   orgIds: string[] = [], // optional org IDs to include org files
+  search?: string, // optional name search (server-side, cross-folder)
 ) {
   const params = new URLSearchParams();
   if (parentId) params.set("parentId", parentId);
   if (trashed) params.set("trashed", "true");
   if (orgIds.length > 0) params.set("orgIds", orgIds.join(","));
+  if (search) params.set("search", search);
   const query = params.toString() ? `?${params.toString()}` : "";
   const res = await apiFetch(token, `/api/files${query}`);
   if (!res.ok) throw new Error("Failed to fetch files");
@@ -68,8 +70,13 @@ export async function renameItem(token: string, id: string, name: string) {
   return res.json();
 }
 
-export async function trashItem(token: string, id: string) {
-  const res = await apiFetch(token, `/api/files/${id}`, {
+export async function trashItem(
+  token: string,
+  id: string,
+  orgIds: string[] = [],
+) {
+  const query = orgIds.length > 0 ? `?orgIds=${orgIds.join(",")}` : "";
+  const res = await apiFetch(token, `/api/files/${id}${query}`, {
     method: "PATCH",
     body: JSON.stringify({ isTrashed: true }),
   });
@@ -144,14 +151,20 @@ export async function getDownloadUrl(
 
 // --- Trash ---
 
-export async function emptyTrash(token: string) {
-  const res = await apiFetch(token, "/api/trash", {
+export async function emptyTrash(token: string, orgIds: string[] = []) {
+  const query = orgIds.length > 0 ? `?orgIds=${orgIds.join(",")}` : "";
+  const res = await apiFetch(token, `/api/trash${query}`, {
     method: "DELETE",
   });
   if (!res.ok) throw new Error("Failed to empty trash");
 }
-export async function restoreItem(token: string, id: string) {
-  const res = await apiFetch(token, `/api/files/${id}`, {
+export async function restoreItem(
+  token: string,
+  id: string,
+  orgIds: string[] = [],
+) {
+  const query = orgIds.length > 0 ? `?orgIds=${orgIds.join(",")}` : "";
+  const res = await apiFetch(token, `/api/files/${id}${query}`, {
     method: "PATCH",
     body: JSON.stringify({ isTrashed: false }),
   });

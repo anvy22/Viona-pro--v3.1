@@ -84,9 +84,17 @@ export async function list(req: Request, res: Response) {
   try {
     const isTrashed = req.query.trashed === "true";
     const parentId = (req.query.parentId as string) || null;
+    const search = (req.query.search as string) || null;
     const orgIds = ((req.query.orgIds as string) || "")
       .split(",")
       .filter(Boolean);
+
+    // When searching, drop the parentId constraint so we search across all folders.
+    // Otherwise scope to the current folder level.
+    const parentFilter = search ? {} : isTrashed ? {} : { parentId };
+    const nameFilter = search
+      ? { name: { contains: search, mode: "insensitive" as const } }
+      : {};
 
     // Personal files: exclude isOrgFolder rows so they don't show up twice
     const personalFiles = await prisma.file.findMany({
@@ -94,29 +102,38 @@ export async function list(req: Request, res: Response) {
         ownerId: req.user!.id,
         isOrgFolder: { not: true },
         orgId: null, // never show org-owned files under personal view
-        ...(isTrashed ? {} : { parentId }),
+        ...parentFilter,
+        ...nameFilter,
         isTrashed,
       },
     });
 
     let orgFiles: typeof personalFiles = [];
 
-    if (orgIds.length > 0 && !isTrashed) {
+    if (orgIds.length > 0) {
       orgFiles = await prisma.file.findMany({
         where: {
           OR: [
-            // Always show the global "organizations/" root at My Drive level
-            {
-              name: "organizations",
-              parentId: null,
-              isOrgFolder: false,
-              isTrashed: false,
-            },
-            // Show org subfolders and org files only at their correct parentId
+            // Show the global "organizations/" root only when browsing (not trash, not search)
+            ...(!search && !isTrashed
+              ? [
+                  {
+                    name: "organizations",
+                    parentId: null,
+                    isOrgFolder: false,
+                    isTrashed: false,
+                  },
+                ]
+              : []),
+            // Org files/folders — match the requested trash state
             {
               orgId: { in: orgIds },
-              isTrashed: false,
-              parentId, // scoped to current folder, same as personal
+              isTrashed, // true in trash view, false in browse view
+              ...(search
+                ? { name: { contains: search, mode: "insensitive" as const } }
+                : isTrashed
+                  ? {} // no parentId constraint in trash view — show all trashed org files
+                  : { parentId }),
             },
           ],
         },
@@ -138,12 +155,24 @@ export async function createFolder(req: Request, res: Response) {
       return res.status(400).json({ error: "Folder name is required" });
     }
 
+    // Inherit orgId from parent folder so org membership propagates to
+    // sub-folders and any files subsequently uploaded into them.
+    let orgId: string | null = null;
+    if (parentId) {
+      const parent = await prisma.file.findUnique({
+        where: { id: parentId },
+        select: { orgId: true },
+      });
+      if (parent?.orgId) orgId = parent.orgId;
+    }
+
     const folder = await prisma.file.create({
       data: {
         name,
         type: "folder",
         parentId: parentId || null,
         ownerId: req.user!.id,
+        ...(orgId ? { orgId } : {}),
       },
     });
 
@@ -157,9 +186,18 @@ export async function createFolder(req: Request, res: Response) {
 export async function update(req: Request, res: Response) {
   try {
     const { id } = req.params;
+    const userOrgIds = ((req.query.orgIds as string) || "")
+      .split(",")
+      .filter(Boolean);
 
     const existingFile = await prisma.file.findFirst({
-      where: { id, ownerId: req.user!.id },
+      where: {
+        id,
+        OR: [
+          { ownerId: req.user!.id },
+          ...(userOrgIds.length > 0 ? [{ orgId: { in: userOrgIds } }] : []),
+        ],
+      },
     });
 
     if (!existingFile) {

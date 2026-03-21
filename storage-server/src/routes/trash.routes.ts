@@ -8,8 +8,19 @@ const router = Router();
 
 router.delete("/", auth, async (req: Request, res: Response) => {
   try {
+    const userOrgIds = ((req.query.orgIds as string) || "")
+      .split(",")
+      .filter(Boolean);
+
+    const ownerOrOrgCondition = {
+      OR: [
+        { ownerId: req.user!.id },
+        ...(userOrgIds.length > 0 ? [{ orgId: { in: userOrgIds } }] : []),
+      ],
+    };
+
     const trashedFiles = await prisma.file.findMany({
-      where: { ownerId: req.user!.id, isTrashed: true },
+      where: { ...ownerOrOrgCondition, isTrashed: true },
       select: { id: true, gcsKey: true },
     });
 
@@ -24,7 +35,7 @@ router.delete("/", auth, async (req: Request, res: Response) => {
     );
 
     await prisma.file.deleteMany({
-      where: { ownerId: req.user!.id, isTrashed: true },
+      where: { ...ownerOrOrgCondition, isTrashed: true },
     });
 
     res.sendStatus(204);
