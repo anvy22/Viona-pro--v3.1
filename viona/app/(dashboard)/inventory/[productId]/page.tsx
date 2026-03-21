@@ -677,7 +677,7 @@ export default function ProductDetailPage() {
                             (o) => String(o.id) === String(selectedOrgId),
                           );
                           if (org) {
-                            const { orgFolderId } =
+                            const { productImagesFolderId } =
                               await StorageApi.ensureOrgFolder(
                                 token,
                                 String(org.id),
@@ -695,7 +695,7 @@ export default function ProductDetailPage() {
                               file,
                               String(org.id),
                               product.sku,
-                              orgFolderId,
+                              productImagesFolderId,
                             );
                           }
                         }

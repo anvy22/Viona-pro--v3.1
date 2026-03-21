@@ -56,6 +56,34 @@ async function getOrEnsureOrgFolder(
   return orgFolder;
 }
 
+// ─── Helper 3: "product images" subfolder inside the org folder ──────────────
+async function getOrEnsureProductImagesFolder(
+  orgId: string,
+  orgFolderId: string,
+): Promise<{ id: string }> {
+  let folder = await prisma.file.findFirst({
+    where: {
+      name: "product images",
+      parentId: orgFolderId,
+      orgId,
+      isTrashed: false,
+    },
+  });
+
+  if (!folder) {
+    folder = await prisma.file.create({
+      data: {
+        name: "product images",
+        type: "folder",
+        orgId,
+        parentId: orgFolderId,
+        ownerId: "system",
+      },
+    });
+  }
+  return folder;
+}
+
 export async function ensureOrgFolder(req: Request, res: Response) {
   try {
     const { orgId, orgName } = req.body;
@@ -70,9 +98,16 @@ export async function ensureOrgFolder(req: Request, res: Response) {
       root.id,
     );
 
+    // Ensure the "product images" subfolder exists inside the org folder
+    const productImagesFolder = await getOrEnsureProductImagesFolder(
+      String(orgId),
+      orgFolder.id,
+    );
+
     res.json({
       rootFolderId: root.id, // id of the "organizations" folder
       orgFolderId: orgFolder.id, // id of the "Acme Corp" folder
+      productImagesFolderId: productImagesFolder.id, // id of "product images" subfolder
     });
   } catch (error) {
     console.error("Error ensuring org folder:", error);

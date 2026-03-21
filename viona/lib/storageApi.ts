@@ -224,7 +224,11 @@ export async function ensureOrgFolder(
   token: string,
   orgId: string,
   orgName: string,
-): Promise<{ rootFolderId: string; orgFolderId: string }> {
+): Promise<{
+  rootFolderId: string;
+  orgFolderId: string;
+  productImagesFolderId: string;
+}> {
   const res = await apiFetch(token, "/api/files/org-folder", {
     method: "POST",
     body: JSON.stringify({ orgId, orgName }),
