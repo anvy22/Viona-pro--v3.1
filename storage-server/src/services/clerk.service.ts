@@ -1,6 +1,9 @@
-import { prisma } from "../utils/prisma";
+import { StorageUser } from "../models/StorageUser.model";
 
-export async function syncUserFromClerk(payload: any) {
+export async function syncUserFromClerk(payload: {
+  sub: string;
+  email?: string;
+}) {
   const clerkUserId = payload.sub;
   const email = payload.email;
 
@@ -8,20 +11,18 @@ export async function syncUserFromClerk(payload: any) {
     throw new Error("Invalid Clerk token payload");
   }
 
-  // Check if user exists
-  const existingUser = await prisma.storageUser.findUnique({
-    where: { id: clerkUserId },
-  });
+  // Check if user already exists
+  const existingUser = await StorageUser.findById(clerkUserId);
 
   if (existingUser) {
-    return existingUser;
+    return { id: existingUser._id as string, email: existingUser.email };
   }
 
-  // Create user if not exists
-  return prisma.storageUser.create({
-    data: {
-      id: clerkUserId,
-      email,
-    },
+  // Create user if not found
+  const newUser = await StorageUser.create({
+    _id: clerkUserId,
+    email,
   });
+
+  return { id: newUser._id as string, email: newUser.email };
 }

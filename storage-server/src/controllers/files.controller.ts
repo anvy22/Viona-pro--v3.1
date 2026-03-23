@@ -1,29 +1,25 @@
 import type { Request, Response } from "express";
-import { prisma } from "../utils/prisma";
+import { File } from "../models/File.model";
 import type { FileUpdateData, AuthenticatedRequest } from "../types/interfaces";
 import { blobServiceClient, CONTAINER_NAME } from "../services/azure.service";
 
 // ─── Helper 1: global "organizations" root folder ────────────────────────────
 async function getOrEnsureRootOrgFolder(): Promise<{ id: string }> {
-  let root = await prisma.file.findFirst({
-    where: {
-      name: "organizations",
-      parentId: null,
-      isOrgFolder: false,
-      isTrashed: false,
-    },
+  let root = await File.findOne({
+    name: "organizations",
+    parentId: null,
+    isOrgFolder: false,
+    isTrashed: false,
   });
 
   if (!root) {
-    root = await prisma.file.create({
-      data: {
-        name: "organizations",
-        type: "folder",
-        ownerId: "system", // FK: must exist in storage_users (see Pre-Flight)
-      },
+    root = await File.create({
+      name: "organizations",
+      type: "folder",
+      ownerId: "system",
     });
   }
-  return root;
+  return { id: root._id as string };
 }
 
 // ─── Helper 2: per-org subfolder inside "organizations/" ─────────────────────
@@ -32,28 +28,24 @@ async function getOrEnsureOrgFolder(
   orgName: string,
   rootFolderId: string,
 ): Promise<{ id: string }> {
-  let orgFolder = await prisma.file.findFirst({
-    where: {
-      orgId,
-      isOrgFolder: true,
-      parentId: rootFolderId,
-      isTrashed: false,
-    },
+  let orgFolder = await File.findOne({
+    orgId,
+    isOrgFolder: true,
+    parentId: rootFolderId,
+    isTrashed: false,
   });
 
   if (!orgFolder) {
-    orgFolder = await prisma.file.create({
-      data: {
-        name: orgName,
-        type: "folder",
-        isOrgFolder: true,
-        orgId,
-        parentId: rootFolderId,
-        ownerId: "system",
-      },
+    orgFolder = await File.create({
+      name: orgName,
+      type: "folder",
+      isOrgFolder: true,
+      orgId,
+      parentId: rootFolderId,
+      ownerId: "system",
     });
   }
-  return orgFolder;
+  return { id: orgFolder._id as string };
 }
 
 // ─── Helper 3: "product images" subfolder inside the org folder ──────────────
@@ -61,27 +53,23 @@ async function getOrEnsureProductImagesFolder(
   orgId: string,
   orgFolderId: string,
 ): Promise<{ id: string }> {
-  let folder = await prisma.file.findFirst({
-    where: {
-      name: "product images",
-      parentId: orgFolderId,
-      orgId,
-      isTrashed: false,
-    },
+  let folder = await File.findOne({
+    name: "product images",
+    parentId: orgFolderId,
+    orgId,
+    isTrashed: false,
   });
 
   if (!folder) {
-    folder = await prisma.file.create({
-      data: {
-        name: "product images",
-        type: "folder",
-        orgId,
-        parentId: orgFolderId,
-        ownerId: "system",
-      },
+    folder = await File.create({
+      name: "product images",
+      type: "folder",
+      orgId,
+      parentId: orgFolderId,
+      ownerId: "system",
     });
   }
-  return folder;
+  return { id: folder._id as string };
 }
 
 export async function ensureOrgFolder(req: Request, res: Response) {
@@ -105,9 +93,9 @@ export async function ensureOrgFolder(req: Request, res: Response) {
     );
 
     res.json({
-      rootFolderId: root.id, // id of the "organizations" folder
-      orgFolderId: orgFolder.id, // id of the "Acme Corp" folder
-      productImagesFolderId: productImagesFolder.id, // id of "product images" subfolder
+      rootFolderId: root.id,
+      orgFolderId: orgFolder.id,
+      productImagesFolderId: productImagesFolder.id,
     });
   } catch (error) {
     console.error("Error ensuring org folder:", error);
@@ -124,55 +112,48 @@ export async function list(req: Request, res: Response) {
       .split(",")
       .filter(Boolean);
 
-    // When searching, drop the parentId constraint so we search across all folders.
-    // Otherwise scope to the current folder level.
     const parentFilter = search ? {} : isTrashed ? {} : { parentId };
     const nameFilter = search
-      ? { name: { contains: search, mode: "insensitive" as const } }
+      ? { name: { $regex: search, $options: "i" } }
       : {};
 
     // Personal files: exclude isOrgFolder rows so they don't show up twice
-    const personalFiles = await prisma.file.findMany({
-      where: {
-        ownerId: req.user!.id,
-        isOrgFolder: { not: true },
-        orgId: null, // never show org-owned files under personal view
-        ...parentFilter,
-        ...nameFilter,
-        isTrashed,
-      },
+    const personalFiles = await File.find({
+      ownerId: req.user!.id,
+      isOrgFolder: { $ne: true },
+      orgId: null,
+      isTrashed,
+      ...parentFilter,
+      ...nameFilter,
     });
 
     let orgFiles: typeof personalFiles = [];
 
     if (orgIds.length > 0) {
-      orgFiles = await prisma.file.findMany({
-        where: {
-          OR: [
-            // Show the global "organizations/" root only when browsing (not trash, not search)
-            ...(!search && !isTrashed
-              ? [
-                  {
-                    name: "organizations",
-                    parentId: null,
-                    isOrgFolder: false,
-                    isTrashed: false,
-                  },
-                ]
-              : []),
-            // Org files/folders — match the requested trash state
-            {
-              orgId: { in: orgIds },
-              isTrashed, // true in trash view, false in browse view
-              ...(search
-                ? { name: { contains: search, mode: "insensitive" as const } }
-                : isTrashed
-                  ? {} // no parentId constraint in trash view — show all trashed org files
-                  : { parentId }),
-            },
-          ],
-        },
-      });
+      const orConditions: any[] = [];
+
+      // Show global "organizations/" root when browsing (not trash, not search)
+      if (!search && !isTrashed) {
+        orConditions.push({
+          name: "organizations",
+          parentId: null,
+          isOrgFolder: false,
+          isTrashed: false,
+        });
+      }
+
+      const orgFilesCondition: any = {
+        orgId: { $in: orgIds },
+        isTrashed,
+      };
+      if (search) {
+        orgFilesCondition.name = { $regex: search, $options: "i" };
+      } else if (!isTrashed) {
+        orgFilesCondition.parentId = parentId;
+      }
+      orConditions.push(orgFilesCondition);
+
+      orgFiles = await File.find({ $or: orConditions });
     }
 
     res.json([...personalFiles, ...orgFiles]);
@@ -194,21 +175,16 @@ export async function createFolder(req: Request, res: Response) {
     // sub-folders and any files subsequently uploaded into them.
     let orgId: string | null = null;
     if (parentId) {
-      const parent = await prisma.file.findUnique({
-        where: { id: parentId },
-        select: { orgId: true },
-      });
+      const parent = await File.findById(parentId).select("orgId");
       if (parent?.orgId) orgId = parent.orgId;
     }
 
-    const folder = await prisma.file.create({
-      data: {
-        name,
-        type: "folder",
-        parentId: parentId || null,
-        ownerId: req.user!.id,
-        ...(orgId ? { orgId } : {}),
-      },
+    const folder = await File.create({
+      name,
+      type: "folder",
+      parentId: parentId || null,
+      ownerId: req.user!.id,
+      ...(orgId ? { orgId } : {}),
     });
 
     res.json(folder);
@@ -225,14 +201,12 @@ export async function update(req: Request, res: Response) {
       .split(",")
       .filter(Boolean);
 
-    const existingFile = await prisma.file.findFirst({
-      where: {
-        id,
-        OR: [
-          { ownerId: req.user!.id },
-          ...(userOrgIds.length > 0 ? [{ orgId: { in: userOrgIds } }] : []),
-        ],
-      },
+    const existingFile = await File.findOne({
+      _id: id,
+      $or: [
+        { ownerId: req.user!.id },
+        ...(userOrgIds.length > 0 ? [{ orgId: { $in: userOrgIds } }] : []),
+      ],
     });
 
     if (!existingFile) {
@@ -247,10 +221,7 @@ export async function update(req: Request, res: Response) {
       data.trashedAt = null;
     }
 
-    const file = await prisma.file.update({
-      where: { id },
-      data,
-    });
+    const file = await File.findByIdAndUpdate(id, data, { new: true });
 
     res.json(file);
   } catch (error) {
@@ -265,16 +236,14 @@ async function deleteRecursive(
   ownerId: string,
   orgId?: string | null,
 ) {
-  const children = await prisma.file.findMany({
-    where: {
-      parentId: folderId,
-      OR: [{ ownerId }, ...(orgId ? [{ orgId }] : [])],
-    },
+  const children = await File.find({
+    parentId: folderId,
+    $or: [{ ownerId }, ...(orgId ? [{ orgId }] : [])],
   });
 
   for (const child of children) {
     if (child.type === "folder") {
-      await deleteRecursive(child.id, ownerId, child.orgId);
+      await deleteRecursive(child._id as string, ownerId, child.orgId);
     } else {
       if (child.gcsKey) {
         const containerClient =
@@ -282,7 +251,7 @@ async function deleteRecursive(
         await containerClient.getBlockBlobClient(child.gcsKey).deleteIfExists();
       }
     }
-    await prisma.file.delete({ where: { id: child.id } });
+    await File.findByIdAndDelete(child._id);
   }
 }
 
@@ -292,11 +261,9 @@ export async function remove(req: Request, res: Response) {
       .split(",")
       .filter(Boolean);
 
-    const file = await prisma.file.findFirst({
-      where: {
-        id: req.params.id,
-        OR: [{ ownerId: req.user!.id }, { orgId: { in: userOrgIds } }],
-      },
+    const file = await File.findOne({
+      _id: req.params.id,
+      $or: [{ ownerId: req.user!.id }, { orgId: { $in: userOrgIds } }],
     });
 
     if (!file) {
@@ -304,7 +271,11 @@ export async function remove(req: Request, res: Response) {
     }
 
     if (file.type === "folder") {
-      await deleteRecursive(file.id, req.user!.id, file.orgId ?? null);
+      await deleteRecursive(
+        file._id as string,
+        req.user!.id,
+        file.orgId ?? null,
+      );
     } else {
       if (file.gcsKey) {
         const containerClient =
@@ -313,7 +284,7 @@ export async function remove(req: Request, res: Response) {
       }
     }
 
-    await prisma.file.delete({ where: { id: file.id } });
+    await File.findByIdAndDelete(file._id);
     res.sendStatus(204);
   } catch (error) {
     console.error("Error deleting file:", error);
@@ -323,16 +294,18 @@ export async function remove(req: Request, res: Response) {
 
 export async function usage(req: Request, res: Response) {
   try {
-    const result = await prisma.file.aggregate({
-      where: {
-        ownerId: req.user!.id,
-        isTrashed: false,
-        type: { not: "folder" },
+    const result = await File.aggregate([
+      {
+        $match: {
+          ownerId: req.user!.id,
+          isTrashed: false,
+          type: { $ne: "folder" },
+        },
       },
-      _sum: { size: true },
-    });
+      { $group: { _id: null, totalSize: { $sum: "$size" } } },
+    ]);
 
-    const usedBytes = Number(result._sum.size ?? 0);
+    const usedBytes = result[0]?.totalSize ?? 0;
     const limitBytes = 500 * 1024 * 1024; // 500 MB
     const percentage = Math.min((usedBytes / limitBytes) * 100, 100);
 
@@ -348,20 +321,16 @@ export async function copy(req: Request, res: Response) {
     const { id } = req.params;
     const { parentId } = req.body;
 
-    const original = await prisma.file.findFirst({
-      where: { id, ownerId: req.user!.id },
-    });
+    const original = await File.findOne({ _id: id, ownerId: req.user!.id });
     if (!original) return res.status(404).json({ error: "File not found" });
 
     if (original.type === "folder") {
       // Only copy the folder record (not recursive contents, for simplicity)
-      const newFolder = await prisma.file.create({
-        data: {
-          name: `${original.name} (copy)`,
-          type: "folder",
-          parentId: parentId ?? null,
-          ownerId: req.user!.id,
-        },
+      const newFolder = await File.create({
+        name: `${original.name} (copy)`,
+        type: "folder",
+        parentId: parentId ?? null,
+        ownerId: req.user!.id,
       });
       return res.json(newFolder);
     }
@@ -374,16 +343,14 @@ export async function copy(req: Request, res: Response) {
     const destBlob = containerClient.getBlockBlobClient(newKey);
     await destBlob.beginCopyFromURL(sourceBlob.url);
 
-    const newFile = await prisma.file.create({
-      data: {
-        name: `${original.name} (copy)`,
-        type: original.type,
-        size: original.size,
-        mimeType: original.mimeType,
-        gcsKey: newKey,
-        parentId: parentId ?? null,
-        ownerId: req.user!.id,
-      },
+    const newFile = await File.create({
+      name: `${original.name} (copy)`,
+      type: original.type,
+      size: original.size,
+      mimeType: original.mimeType,
+      gcsKey: newKey,
+      parentId: parentId ?? null,
+      ownerId: req.user!.id,
     });
     res.json(newFile);
   } catch (error) {

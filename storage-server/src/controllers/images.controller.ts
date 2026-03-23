@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { prisma } from "../utils/prisma";
+import { File } from "../models/File.model";
 import { blobServiceClient, CONTAINER_NAME } from "../services/azure.service";
 import {
   generateBlobSASQueryParameters,
@@ -10,13 +10,15 @@ import {
 function generateSasUrl(
   blobName: string,
   permissions: string,
-  expiresInSeconds: number
+  expiresInSeconds: number,
 ): string {
   const connStr = process.env.AZURE_STORAGE_CONNECTION_STRING!;
   const accountNameMatch = connStr.match(/AccountName=([^;]+)/);
   const accountKeyMatch = connStr.match(/AccountKey=([^;]+)/);
   if (!accountNameMatch || !accountKeyMatch) {
-    throw new Error("Cannot parse AccountName/AccountKey from AZURE_STORAGE_CONNECTION_STRING");
+    throw new Error(
+      "Cannot parse AccountName/AccountKey from AZURE_STORAGE_CONNECTION_STRING",
+    );
   }
   const accountName: string = accountNameMatch[1]!;
   const accountKey: string = accountKeyMatch[1]!;
@@ -29,15 +31,17 @@ function generateSasUrl(
       permissions: BlobSASPermissions.parse(permissions),
       expiresOn,
     },
-    credential
+    credential,
   ).toString();
   return `https://${accountName}.blob.core.windows.net/${CONTAINER_NAME}/${blobName}?${sasQueryParams}`;
 }
 
 export async function serveImage(req: Request, res: Response) {
   try {
-    const file = await prisma.file.findFirst({
-      where: { id: req.params.id, ownerId: req.user!.id, isTrashed: false },
+    const file = await File.findOne({
+      _id: req.params.id,
+      ownerId: req.user!.id,
+      isTrashed: false,
     });
 
     if (!file) {

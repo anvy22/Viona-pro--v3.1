@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { prisma } from "../utils/prisma";
+import { File } from "../models/File.model";
 import { blobServiceClient, CONTAINER_NAME } from "../services/azure.service";
 import type { UploadRequestBody } from "../types/interfaces";
 import {
@@ -7,6 +7,7 @@ import {
   BlobSASPermissions,
   StorageSharedKeyCredential,
 } from "@azure/storage-blob";
+import { v4 as uuidv4 } from "uuid";
 
 function getSharedKeyCredential(): StorageSharedKeyCredential {
   const connStr = process.env.AZURE_STORAGE_CONNECTION_STRING!;
@@ -64,16 +65,13 @@ export async function upload(req: Request, res: Response) {
     // inherit orgId from the parent folder so org members can access the file.
     let resolvedOrgId = orgId ? String(orgId) : null;
     if (!resolvedOrgId && parentId) {
-      const parent = await prisma.file.findUnique({
-        where: { id: parentId },
-        select: { orgId: true },
-      });
+      const parent = await File.findById(parentId).select("orgId");
       if (parent?.orgId) {
         resolvedOrgId = parent.orgId;
       }
     }
 
-    const fileId = crypto.randomUUID();
+    const fileId = uuidv4();
 
     // Org inventory images get a deterministic, SKU-based blob path.
     // Re-uploading the same SKU overwrites the blob automatically.
@@ -91,54 +89,52 @@ export async function upload(req: Request, res: Response) {
     // For regular files (unique blob path), always create.
     let file;
     if (resolvedOrgId && sku) {
-      const existing = await prisma.file.findFirst({
-        where: { gcsKey: blobName },
-      });
+      const existing = await File.findOne({ gcsKey: blobName });
       if (existing) {
-        file = await prisma.file.update({
-          where: { id: existing.id },
-          data: {
+        file = await File.findByIdAndUpdate(
+          existing._id,
+          {
             name: sku ?? name,
-            size: BigInt(size || 0),
+            size: size || 0,
             mimeType,
             updatedAt: new Date(),
           },
-        });
+          { new: true },
+        );
       } else {
-        file = await prisma.file.create({
-          data: {
-            id: fileId,
-            name: sku ?? name,
-            type,
-            size: BigInt(size || 0),
-            mimeType,
-            parentId: parentId || null,
-            ownerId: req.user!.id,
-            gcsKey: blobName,
-            orgId: resolvedOrgId,
-          },
-        });
-      }
-    } else {
-      file = await prisma.file.create({
-        data: {
-          id: fileId,
+        file = await File.create({
+          _id: fileId,
           name: sku ?? name,
           type,
-          size: BigInt(size || 0),
+          size: size || 0,
           mimeType,
           parentId: parentId || null,
           ownerId: req.user!.id,
           gcsKey: blobName,
-          ...(resolvedOrgId ? { orgId: resolvedOrgId } : {}),
-        },
+          orgId: resolvedOrgId,
+        });
+      }
+    } else {
+      file = await File.create({
+        _id: fileId,
+        name: sku ?? name,
+        type,
+        size: size || 0,
+        mimeType,
+        parentId: parentId || null,
+        ownerId: req.user!.id,
+        gcsKey: blobName,
+        ...(resolvedOrgId ? { orgId: resolvedOrgId } : {}),
       });
     }
 
     // Generate a SAS URL with Write permission (valid for 10 minutes)
     const uploadUrl = generateSasUrl(blobName, "cw", 600);
 
-    return res.json({ uploadUrl, fileId: file.id });
+    return res.json({
+      uploadUrl,
+      fileId: (file as any)._id ?? (file as any).id,
+    });
   } catch (error) {
     console.error("Error creating upload URL:", error);
     return res.status(500).json({ error: "Failed to create upload URL" });
@@ -161,11 +157,9 @@ export async function download(req: Request, res: Response) {
       .split(",")
       .filter(Boolean);
 
-    const file = await prisma.file.findFirst({
-      where: {
-        id: req.params.id,
-        OR: [{ ownerId: req.user!.id }, { orgId: { in: userOrgIds } }],
-      },
+    const file = await File.findOne({
+      _id: req.params.id,
+      $or: [{ ownerId: req.user!.id }, { orgId: { $in: userOrgIds } }],
     });
 
     if (!file) {
@@ -192,11 +186,9 @@ export async function view(req: Request, res: Response) {
       .split(",")
       .filter(Boolean);
 
-    const file = await prisma.file.findFirst({
-      where: {
-        id: req.params.id,
-        OR: [{ ownerId: req.user!.id }, { orgId: { in: userOrgIds } }],
-      },
+    const file = await File.findOne({
+      _id: req.params.id,
+      $or: [{ ownerId: req.user!.id }, { orgId: { $in: userOrgIds } }],
     });
     if (!file) return res.status(404).json({ error: "File not found" });
     if (!file.gcsKey)
