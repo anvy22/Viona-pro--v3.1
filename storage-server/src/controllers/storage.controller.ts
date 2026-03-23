@@ -98,6 +98,8 @@ export async function upload(req: Request, res: Response) {
             size: size || 0,
             mimeType,
             updatedAt: new Date(),
+            isTrashed: false,
+            trashedAt: null,
           },
           { new: true },
         );
