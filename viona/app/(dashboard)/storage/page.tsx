@@ -19,7 +19,6 @@ import { useOrgStore } from "@/hooks/useOrgStore";
 import { OrganizationState } from "@/components/OrganizationState";
 import { toast } from "sonner";
 
-
 export default function Home() {
   const { selectedOrgId, orgs, setSelectedOrgId } = useOrgStore();
   const orgIds = orgs.map((o) => String(o.id));
@@ -59,6 +58,11 @@ export default function Home() {
     emptyTrash: false,
     restoreAll: false,
   });
+
+  const [duplicateDialog, setDuplicateDialog] = useState<{
+    file: File;
+    existingItem: FileItem;
+  } | null>(null);
 
   const [contextMenuViewUrl, setContextMenuViewUrl] = useState<string | null>(
     null,
@@ -146,7 +150,7 @@ export default function Home() {
 
   // --- Actions ---
 
-    const loadFiles = async (showToast: boolean = true) => {
+  const loadFiles = async (showToast: boolean = true) => {
     let loadingToastId;
     if (showToast && !loading) {
       loadingToastId = toast.loading("Loading...");
@@ -179,7 +183,7 @@ export default function Home() {
       const usageData = await StorageApi.getUsage(token);
       setUsagePercent(usageData.percentage);
       setUsedBytes(usageData.usedBytes);
-      
+
       if (loadingToastId) toast.dismiss(loadingToastId);
     } catch (err) {
       console.error("Failed to load files", err);
@@ -275,7 +279,7 @@ export default function Home() {
     }
   };
 
-    const handleDelete = async () => {
+  const handleDelete = async () => {
     if (!selectedFile) return;
 
     const deletePromise = async () => {
@@ -288,12 +292,11 @@ export default function Home() {
     };
 
     toast.promise(deletePromise(), {
-      loading: 'Deleting...',
-      success: 'Done',
-      error: 'Failed to delete'
+      loading: "Deleting...",
+      success: "Done",
+      error: "Failed to delete",
     });
   };
-
 
   const handleRestore = async () => {
     if (!selectedFile) return;
@@ -320,9 +323,9 @@ export default function Home() {
     }
   };
 
-    const handleDeleteForever = async () => {
+  const handleDeleteForever = async () => {
     if (!selectedFile) return;
-    
+
     const deletePromise = async () => {
       const token = await getToken();
       if (!token) throw new Error("Authentication error");
@@ -333,12 +336,11 @@ export default function Home() {
     };
 
     toast.promise(deletePromise(), {
-      loading: 'Deleting permanently...',
-      success: 'Done',
-      error: 'Failed to permanently delete'
+      loading: "Deleting permanently...",
+      success: "Done",
+      error: "Failed to permanently delete",
     });
   };
-
 
   const handleRestoreAll = async () => {
     try {
@@ -380,26 +382,54 @@ export default function Home() {
     fileInputRef.current?.click();
   };
 
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (fileInputRef.current) fileInputRef.current.value = "";
 
+    // Check for a name collision in the current folder
+    const collision = items.find(
+      (item) =>
+        item.name === file.name &&
+        item.parentId === currentFolderId &&
+        !item.isTrashed &&
+        item.type !== "folder",
+    );
+
+    if (collision) {
+      setDuplicateDialog({ file, existingItem: collision });
+      return;
+    }
+
+    doUpload(file, undefined);
+  };
+
+  const doUpload = (file: File, mode: "replace" | "keep" | undefined) => {
     const uploadPromise = async () => {
       const token = await getToken();
       if (!token) throw new Error("Authentication error");
-      await StorageApi.uploadFile(token, file, currentFolderId);
-      await loadFiles(false); // pass false so we don't show the generic "Loading..." toast
+      await StorageApi.uploadFile(token, file, currentFolderId, mode);
+      await loadFiles(false);
     };
 
     toast.promise(uploadPromise(), {
-      loading: 'Uploading...',
-      success: 'Done',
-      error: 'Upload failed',
+      loading: "Uploading...",
+      success: "Done",
+      error: "Upload failed",
     });
-
-    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const handleDuplicateReplace = () => {
+    if (!duplicateDialog) return;
+    setDuplicateDialog(null);
+    doUpload(duplicateDialog.file, "replace");
+  };
+
+  const handleDuplicateKeep = () => {
+    if (!duplicateDialog) return;
+    setDuplicateDialog(null);
+    doUpload(duplicateDialog.file, "keep");
+  };
 
   const handleContextMenu = (e: React.MouseEvent, item: FileItem) => {
     e.preventDefault();
@@ -550,8 +580,6 @@ export default function Home() {
   return (
     <div className="flex-1 overflow-y-auto relative ">
       <div className="p-4 md:p-6">
-        
-
         {/* ... inputs/nav ... */}
         <input
           type="file"
@@ -779,6 +807,43 @@ export default function Home() {
           file={selectedFile}
           onCopyLink={() => selectedFile && handleContextCopyLink(selectedFile)}
         />
+
+        {duplicateDialog && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-card border border-border rounded-xl shadow-xl p-6 max-w-sm w-full mx-4">
+              <h2 className="text-lg font-semibold mb-2">
+                File already exists
+              </h2>
+              <p className="text-sm text-muted-foreground mb-6">
+                A file named{" "}
+                <span className="font-medium text-foreground">
+                  &quot;{duplicateDialog.file.name}&quot;
+                </span>{" "}
+                already exists in this folder. What would you like to do?
+              </p>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={handleDuplicateReplace}
+                  className="w-full py-2 px-4 rounded-lg bg-destructive/10 hover:bg-destructive/20 text-destructive border border-destructive/20 text-sm font-medium transition-colors"
+                >
+                  Replace existing file
+                </button>
+                <button
+                  onClick={handleDuplicateKeep}
+                  className="w-full py-2 px-4 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium transition-colors shadow-sm"
+                >
+                  Keep both
+                </button>
+                <button
+                  onClick={() => setDuplicateDialog(null)}
+                  className="w-full py-2 px-4 rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border text-sm font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {contextMenu && (
           <ContextMenu

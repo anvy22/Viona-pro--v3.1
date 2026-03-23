@@ -37,4 +37,5 @@ export interface UploadRequestBody {
   parentId?: string;
   orgId?: string;
   sku?: string;
+  mode?: "replace" | "keep";
 }

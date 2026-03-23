@@ -102,6 +102,7 @@ export async function uploadFile(
   token: string,
   file: File,
   parentId?: string | null,
+  mode?: "replace" | "keep",
 ) {
   // Step 1: Get a pre-signed upload URL
   const uploadRes = await apiFetch(token, "/api/storage/upload", {
@@ -111,6 +112,7 @@ export async function uploadFile(
       type: file.type || "application/octet-stream",
       size: file.size,
       parentId,
+      ...(mode ? { mode } : {}),
     }),
   });
   if (!uploadRes.ok) throw new Error("Failed to initiate upload");

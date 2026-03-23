@@ -54,7 +54,7 @@ function generateSasUrl(
 
 export async function upload(req: Request, res: Response) {
   try {
-    const { name, type, size, mimeType, parentId, orgId, sku } =
+    const { name, type, size, mimeType, parentId, orgId, sku, mode } =
       req.body as UploadRequestBody;
 
     if (!name || !type) {
@@ -83,6 +83,53 @@ export async function upload(req: Request, res: Response) {
       blobName = `organizations/${resolvedOrgId}/${fileId}-${name}`;
     } else {
       blobName = `${req.user!.id}/${fileId}`;
+    }
+
+    // --- Duplicate handling for regular (non-org-sku) uploads ---
+    let finalName = name;
+    if (!(resolvedOrgId && sku)) {
+      const existing = await File.findOne({
+        name,
+        parentId: parentId || null,
+        ownerId: req.user!.id,
+        isTrashed: false,
+      });
+
+      if (existing) {
+        if (mode === "replace") {
+          // Reuse the same blob key so Azure overwrites it in-place
+          blobName = existing.gcsKey!;
+          const updated = await File.findByIdAndUpdate(
+            existing._id,
+            { size: size || 0, mimeType, updatedAt: new Date() },
+            { new: true },
+          );
+          const uploadUrl = generateSasUrl(blobName, "cw", 600);
+          return res.json({
+            uploadUrl,
+            fileId: (updated as any)._id ?? (updated as any).id,
+          });
+        } else {
+          // "keep" — find the next available numbered name: foo (1).pdf, foo (2).pdf …
+          const dotIndex = name.lastIndexOf(".");
+          const base = dotIndex !== -1 ? name.slice(0, dotIndex) : name;
+          const ext = dotIndex !== -1 ? name.slice(dotIndex) : "";
+          let counter = 1;
+          let candidate = `${base} (${counter})${ext}`;
+          while (
+            await File.exists({
+              name: candidate,
+              parentId: parentId || null,
+              ownerId: req.user!.id,
+              isTrashed: false,
+            })
+          ) {
+            counter++;
+            candidate = `${base} (${counter})${ext}`;
+          }
+          finalName = candidate;
+        }
+      }
     }
 
     // For org inventory images (deterministic blob path), upsert to avoid duplicates.
@@ -119,7 +166,7 @@ export async function upload(req: Request, res: Response) {
     } else {
       file = await File.create({
         _id: fileId,
-        name: sku ?? name,
+        name: finalName,
         type,
         size: size || 0,
         mimeType,
