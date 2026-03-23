@@ -17,6 +17,8 @@ import { cn } from "@/lib/utils";
 import { ArrowLeft } from "lucide-react";
 import { useOrgStore } from "@/hooks/useOrgStore";
 import { OrganizationState } from "@/components/OrganizationState";
+import { toast } from "sonner";
+
 
 export default function Home() {
   const { selectedOrgId, orgs, setSelectedOrgId } = useOrgStore();
@@ -144,13 +146,18 @@ export default function Home() {
 
   // --- Actions ---
 
-  const loadFiles = async () => {
+    const loadFiles = async (showToast: boolean = true) => {
+    let loadingToastId;
+    if (showToast && !loading) {
+      loadingToastId = toast.loading("Loading...");
+    }
+
     try {
       setLoading(true);
       const token = await getToken();
       if (!token) return;
 
-      // Ensure org folder hierarchy exists (idempotent — safe to call every load)
+      // Ensure org folder hierarchy exists
       if (selectedOrgId) {
         const org = orgs.find((o) => String(o.id) === String(selectedOrgId));
         if (org) {
@@ -172,12 +179,18 @@ export default function Home() {
       const usageData = await StorageApi.getUsage(token);
       setUsagePercent(usageData.percentage);
       setUsedBytes(usageData.usedBytes);
+      
+      if (loadingToastId) toast.dismiss(loadingToastId);
     } catch (err) {
       console.error("Failed to load files", err);
+      if (loadingToastId) toast.dismiss(loadingToastId);
+      toast.error("Failed to load files");
     } finally {
       setLoading(false);
+      if (loadingToastId) toast.dismiss(loadingToastId);
     }
   };
+
   const loadPreviewUrls = async (files: FileItem[]) => {
     const token = await getToken();
     if (!token) return;
@@ -262,19 +275,25 @@ export default function Home() {
     }
   };
 
-  const handleDelete = async () => {
+    const handleDelete = async () => {
     if (!selectedFile) return;
-    try {
+
+    const deletePromise = async () => {
       const token = await getToken();
-      if (!token) return;
+      if (!token) throw new Error("Authentication error");
       await StorageApi.trashItem(token, selectedFile.id, orgIds);
       setSelectedFile(null);
       setModals((prev) => ({ ...prev, delete: false }));
-      await loadFiles();
-    } catch (err) {
-      console.error("Failed to delete", err);
-    }
+      await loadFiles(false);
+    };
+
+    toast.promise(deletePromise(), {
+      loading: 'Deleting...',
+      success: 'Done',
+      error: 'Failed to delete'
+    });
   };
+
 
   const handleRestore = async () => {
     if (!selectedFile) return;
@@ -301,19 +320,25 @@ export default function Home() {
     }
   };
 
-  const handleDeleteForever = async () => {
+    const handleDeleteForever = async () => {
     if (!selectedFile) return;
-    try {
+    
+    const deletePromise = async () => {
       const token = await getToken();
-      if (!token) return;
+      if (!token) throw new Error("Authentication error");
       await StorageApi.deleteItem(token, selectedFile.id, orgIds);
       setSelectedFile(null);
       setModals((prev) => ({ ...prev, delete: false }));
-      await loadFiles();
-    } catch (err) {
-      console.error("Failed to permanently delete", err);
-    }
+      await loadFiles(false);
+    };
+
+    toast.promise(deletePromise(), {
+      loading: 'Deleting permanently...',
+      success: 'Done',
+      error: 'Failed to permanently delete'
+    });
   };
+
 
   const handleRestoreAll = async () => {
     try {
@@ -355,20 +380,26 @@ export default function Home() {
     fileInputRef.current?.click();
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    try {
+
+    const uploadPromise = async () => {
       const token = await getToken();
-      if (!token) return;
+      if (!token) throw new Error("Authentication error");
       await StorageApi.uploadFile(token, file, currentFolderId);
-      await loadFiles();
-    } catch (err) {
-      console.error("Upload failed", err);
-    } finally {
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
+      await loadFiles(false); // pass false so we don't show the generic "Loading..." toast
+    };
+
+    toast.promise(uploadPromise(), {
+      loading: 'Uploading...',
+      success: 'Done',
+      error: 'Upload failed',
+    });
+
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
+
 
   const handleContextMenu = (e: React.MouseEvent, item: FileItem) => {
     e.preventDefault();
@@ -519,11 +550,7 @@ export default function Home() {
   return (
     <div className="flex-1 overflow-y-auto relative ">
       <div className="p-4 md:p-6">
-        {loading && (
-          <div className="fixed top-[70px] left-0 right-0 flex justify-center text-gray-400 text-sm pointer-events-none z-50">
-            Loading...
-          </div>
-        )}
+        
 
         {/* ... inputs/nav ... */}
         <input
