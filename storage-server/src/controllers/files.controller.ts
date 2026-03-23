@@ -5,20 +5,22 @@ import { blobServiceClient, CONTAINER_NAME } from "../services/azure.service";
 
 // ─── Helper 1: global "organizations" root folder ────────────────────────────
 async function getOrEnsureRootOrgFolder(): Promise<{ id: string }> {
-  let root = await File.findOne({
-    name: "organizations",
-    parentId: null,
-    isOrgFolder: false,
-    isTrashed: false,
-  });
-
-  if (!root) {
-    root = await File.create({
+  const root = await File.findOneAndUpdate(
+    {
       name: "organizations",
-      type: "folder",
-      ownerId: "system",
-    });
-  }
+      parentId: null,
+      isOrgFolder: false,
+      isTrashed: false,
+    },
+    {
+      $setOnInsert: {
+        name: "organizations",
+        type: "folder",
+        ownerId: "system",
+      },
+    },
+    { upsert: true, new: true },
+  );
   return { id: root._id as string };
 }
 
@@ -28,23 +30,20 @@ async function getOrEnsureOrgFolder(
   orgName: string,
   rootFolderId: string,
 ): Promise<{ id: string }> {
-  let orgFolder = await File.findOne({
-    orgId,
-    isOrgFolder: true,
-    parentId: rootFolderId,
-    isTrashed: false,
-  });
-
-  if (!orgFolder) {
-    orgFolder = await File.create({
-      name: orgName,
-      type: "folder",
-      isOrgFolder: true,
-      orgId,
-      parentId: rootFolderId,
-      ownerId: "system",
-    });
-  }
+  const orgFolder = await File.findOneAndUpdate(
+    { orgId, isOrgFolder: true, parentId: rootFolderId, isTrashed: false },
+    {
+      $setOnInsert: {
+        name: orgName,
+        type: "folder",
+        isOrgFolder: true,
+        orgId,
+        parentId: rootFolderId,
+        ownerId: "system",
+      },
+    },
+    { upsert: true, new: true },
+  );
   return { id: orgFolder._id as string };
 }
 
@@ -156,7 +155,13 @@ export async function list(req: Request, res: Response) {
       orgFiles = await File.find({ $or: orConditions });
     }
 
-    res.json([...personalFiles, ...orgFiles]);
+    const merged = [...personalFiles, ...orgFiles];
+    merged.sort((a, b) => {
+      if (a.name === "organizations") return -1;
+      if (b.name === "organizations") return 1;
+      return 0;
+    });
+    res.json(merged);
   } catch (error) {
     console.error("Error listing files:", error);
     res.status(500).json({ error: "Failed to list files" });

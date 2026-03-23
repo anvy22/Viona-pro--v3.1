@@ -50,9 +50,15 @@ const FileSchema = new Schema<IFile>(
   },
 );
 
-// Indexes matching Prisma's @@index declarations
+// Indexes
 FileSchema.index({ ownerId: 1, parentId: 1 });
 FileSchema.index({ orgId: 1 });
 FileSchema.index({ gcsKey: 1 });
+// Prevents duplicate org subfolders
+FileSchema.index(
+  { orgId: 1, isOrgFolder: 1, parentId: 1 },
+  { unique: true, partialFilterExpression: { isOrgFolder: true } }
+);
+
 
 export const File = mongoose.model<IFile>("File", FileSchema, "files");
