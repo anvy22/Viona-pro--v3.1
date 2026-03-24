@@ -1,203 +1,102 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowRight, Play, BarChart3, TrendingUp, Users } from 'lucide-react';
+"use client";
+
+import React from "react";
+import { ArrowRight } from "lucide-react";
+import { motion } from "motion/react";
 
 interface HeroSectionProps {
   onGetStarted: () => void;
 }
 
 const HeroSection: React.FC<HeroSectionProps> = ({ onGetStarted }) => {
-  const [isHovered, setIsHovered] = useState(false);
-  const targetRevenue = 127000;
-  const targetOrders = 1459;
-  const targetUsers = 8234;
-  const baseFactor = 0.5;
-  const baseRevenue = targetRevenue * baseFactor;
-  const baseOrders = targetOrders * baseFactor;
-  const baseUsers = targetUsers * baseFactor;
-  const [displayRevenue, setDisplayRevenue] = useState(baseRevenue);
-  const [displayOrders, setDisplayOrders] = useState(baseOrders);
-  const [displayUsers, setDisplayUsers] = useState(baseUsers);
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    const duration = 500;
-    const steps = 50;
-
-    const animate = (endRevenue: number, endOrders: number, endUsers: number) => {
-      const startRevenue = displayRevenue;
-      const startOrders = displayOrders;
-      const startUsers = displayUsers;
-      const revenueStep = (endRevenue - startRevenue) / steps;
-      const ordersStep = (endOrders - startOrders) / steps;
-      const usersStep = (endUsers - startUsers) / steps;
-      let count = 0;
-
-      interval = setInterval(() => {
-        count++;
-        const newRevenue = startRevenue + count * revenueStep;
-        const newOrders = startOrders + count * ordersStep;
-        const newUsers = startUsers + count * usersStep;
-
-        setDisplayRevenue(revenueStep > 0 ? Math.min(newRevenue, endRevenue) : Math.max(newRevenue, endRevenue));
-        setDisplayOrders(ordersStep > 0 ? Math.min(newOrders, endOrders) : Math.max(newOrders, endOrders));
-        setDisplayUsers(usersStep > 0 ? Math.min(newUsers, endUsers) : Math.max(newUsers, endUsers));
-
-        if (count >= steps) {
-          if (interval) clearInterval(interval);
-        }
-      }, duration / steps);
-    };
-
-    if (isHovered) {
-      animate(targetRevenue, targetOrders, targetUsers);
-    } else {
-      animate(baseRevenue, baseOrders, baseUsers);
-    }
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isHovered, displayRevenue, displayOrders, displayUsers]);
-
-  const barHeights = [40, 70, 50, 80, 60, 90, 75];
-
   return (
-    <section className="relative w-full">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32 relative z-10">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          {/* Content */}
-          <div className="space-y-8">
-            <div className="space-y-4">
-              <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20 backdrop-blur-sm">
-                <span className="w-2 h-2 bg-primary rounded-full mr-2 animate-pulse"></span>
-                Trusted by 10,000+ businesses
-              </div>
-              <h1 className="text-4xl lg:text-6xl font-bold text-foreground leading-tight">
-                Transform Your Business with{' '}
-                <span className="text-primary bg-gradient-to-r from-primary to-primary/80 bg-clip-text">AI-Powered</span> Analytics
-              </h1>
-              <p className="text-lg text-muted-foreground max-w-lg leading-relaxed">
-                Streamline operations, gain real-time insights, and make data-driven decisions 
-                that accelerate your business growth with our comprehensive analytics platform.
-              </p>
-            </div>
+    <section className="relative w-full min-h-screen bg-[#09090b] overflow-hidden pt-24 pb-16 flex flex-col justify-between">
+      
+      {/* Sharp Diagonal Emerald Background Graphics mimicking reference but in green */}
+      <div className="absolute top-0 right-0 w-full h-full pointer-events-none overflow-hidden z-0">
+        <motion.div 
+          initial={{ opacity: 0, x: 100 }}
+          animate={{ opacity: 0.6, x: 0 }}
+          transition={{ duration: 1, delay: 0.2 }}
+          className="absolute -right-[10%] top-[10%] w-[100%] h-[150%] bg-[#064e3b]" // emerald-900 equivalent
+          style={{ transform: "rotate(-35deg) translateY(-20%)" }}
+        />
+        <motion.div 
+          initial={{ opacity: 0, x: 100 }}
+          animate={{ opacity: 0.8, x: 0 }}
+          transition={{ duration: 1, delay: 0.4 }}
+          className="absolute -right-[5%] top-[15%] w-[80%] h-[150%] bg-[#047857]" // emerald-700
+          style={{ transform: "rotate(-35deg) translateY(-20%)" }}
+        />
+        <motion.div 
+          initial={{ opacity: 0, x: 100 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 1, delay: 0.6 }}
+          className="absolute right-[0%] top-[20%] w-[60%] h-[150%] bg-[#10b981]" // emerald-500
+          style={{ transform: "rotate(-35deg) translateY(-20%)" }}
+        />
+      </div>
 
-            {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button
-                onClick={onGetStarted}
-                className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-primary-foreground bg-primary hover:bg-primary/90 transition-all duration-300 group shadow-lg hover:shadow-xl hover:-translate-y-0.5"
-              >
-                Start Free Trial
-                <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
-              </button>
-              <button className="inline-flex items-center justify-center px-6 py-3 border border-border/30 text-base font-medium rounded-lg text-foreground bg-background/60 backdrop-blur-sm hover:bg-muted/60 transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-0.5">
-                <Play className="mr-2 h-4 w-4" />
-                Watch Demo
-              </button>
-            </div>
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10 flex-grow flex flex-col justify-center">
+        
+        {/* Left Aligned Content */}
+        <div className="max-w-3xl mt-12 md:mt-24">
+          
+          {/* Top Pill */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 backdrop-blur-md mb-8 hover:bg-emerald-500/20 transition-colors cursor-pointer"
+          >
+            Introducing autonomous AI workflows
+            <ArrowRight className="ml-2 w-3 h-3 text-emerald-400" />
+          </motion.div>
+          
+          {/* Headline */}
+          <motion.h1 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-white mb-6 leading-[1.1]"
+          >
+            Automate your entire business with <br className="hidden md:block" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
+              AI that never sleeps.
+            </span>
+          </motion.h1>
 
-            {/* Trust Indicators */}
-            <div className="grid grid-cols-3 gap-8 pt-8 border-t border-border/15">
-              <div className="text-center group">
-                <div className="flex items-center justify-center w-12 h-12 bg-transparent rounded-lg mb-2 mx-auto group-hover:scale-110 transition-transform duration-300">
-                  <BarChart3 className="h-6 w-6 text-green-600" />
-                </div>
-                <div className="text-2xl font-bold text-foreground">99.9%</div>
-                <div className="text-sm text-muted-foreground">Uptime</div>
-              </div>
-              <div className="text-center group">
-                <div className="flex items-center justify-center w-12 h-12 bg-transparent rounded-lg mb-2 mx-auto group-hover:scale-110 transition-transform duration-300">
-                  <TrendingUp className="h-6 w-6 text-green-600" />
-                </div>
-                <div className="text-2xl font-bold text-foreground">40%</div>
-                <div className="text-sm text-muted-foreground">Avg Growth</div>
-              </div>
-              <div className="text-center group">
-                <div className="flex items-center justify-center w-12 h-12 bg-transparent rounded-lg mb-2 mx-auto group-hover:scale-110 transition-transform duration-300">
-                  <Users className="h-6 w-6 text-green-600" />
-                </div>
-                <div className="text-2xl font-bold text-foreground">10k+</div>
-                <div className="text-sm text-muted-foreground">Companies</div>
-              </div>
-            </div>
-          </div>
+          {/* Subtitle */}
+          <motion.p 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="text-lg md:text-xl text-neutral-300 max-w-2xl leading-relaxed mb-10 font-medium"
+          >
+            The intelligent ERP and management platform that unifies your inventory, orders, team workspaces, and autonomous AI workflows.
+          </motion.p>
 
-          {/* Hero Visual */}
-          <div className="relative">
-            <div className="bg-card/60 backdrop-blur-md rounded-2xl shadow-xl p-6 border border-border/15 hover:shadow-2xl transition-all duration-500">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-foreground">Revenue Dashboard</h3>
-                  <div className="flex space-x-1">
-                    <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" style={{ animationDuration: '2s' }}></div>
-                    <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse" style={{ animationDuration: '2.5s', animationDelay: '0.5s' }}></div>
-                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" style={{ animationDuration: '3s', animationDelay: '1s' }}></div>
-                  </div>
-                </div>
-                
-                {/* Mock Chart */}
-                <div 
-                  className="space-y-3"
-                  onMouseEnter={() => setIsHovered(true)}
-                  onMouseLeave={() => setIsHovered(false)}
-                >
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="bg-primary/10 backdrop-blur-sm rounded-lg p-3 hover:bg-primary/15 transition-colors duration-300">
-                      <div className="text-sm text-muted-foreground">Revenue</div>
-                      <div className="text-xl font-bold text-primary">${Math.round(displayRevenue / 1000)}K</div>
-                      <div className="text-xs text-green-600 flex items-center">
-                        <TrendingUp className="w-3 h-3 mr-1" />
-                        +12%
-                      </div>
-                    </div>
-                    <div className="bg-blue-500/10 backdrop-blur-sm rounded-lg p-3 hover:bg-blue-500/15 transition-colors duration-300">
-                      <div className="text-sm text-muted-foreground">Orders</div>
-                      <div className="text-xl font-bold text-blue-500">{Math.round(displayOrders)}</div>
-                      <div className="text-xs text-green-600 flex items-center">
-                        <TrendingUp className="w-3 h-3 mr-1" />
-                        +8%
-                      </div>
-                    </div>
-                    <div className="bg-purple-500/10 backdrop-blur-sm rounded-lg p-3 hover:bg-purple-500/15 transition-colors duration-300">
-                      <div className="text-sm text-muted-foreground">Users</div>
-                      <div className="text-xl font-bold text-purple-500">{Math.round(displayUsers)}</div>
-                      <div className="text-xs text-green-600 flex items-center">
-                        <TrendingUp className="w-3 h-3 mr-1" />
-                        +23%
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Mock Chart Bars */}
-                  <div className="flex items-end space-x-2 h-32 p-4 bg-gradient-to-t from-muted/20 to-transparent rounded-lg">
-                    {barHeights.map((height, index) => (
-                      <div
-                        key={index}
-                        className="flex-1 bg-gradient-to-t from-primary/20 to-primary/10 rounded-t transition-all duration-500 ease-out shadow-sm"
-                        style={{ height: `${isHovered ? height : height * baseFactor}%` }}
-                      >
-                        <div
-                          className="w-full bg-gradient-to-t from-primary to-primary/80 rounded-t shadow-md"
-                          style={{ height: '30%' }}
-                        ></div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            {/* Static Floating Elements */}
-            <div className="absolute -top-4 -right-4 bg-green-500 text-white px-4 py-2 rounded-full text-xs font-medium shadow-lg">
-              Real-time updates
-            </div>
-            <div className="absolute -bottom-4 -left-4 bg-yellow-500 text-white px-4 py-2 rounded-full text-xs font-medium shadow-lg">
-              AI Insights
-            </div>
-          </div>
+          {/* Buttons */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="flex flex-col sm:flex-row gap-4 items-start"
+          >
+            <button
+              onClick={onGetStarted}
+              className="inline-flex items-center justify-center px-6 py-3.5 text-base font-semibold rounded-lg text-white bg-emerald-500 hover:bg-emerald-600 transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)]"
+            >
+              Get Started
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </button>
+            <button className="inline-flex items-center justify-center px-6 py-3.5 text-base font-medium rounded-lg text-white bg-white/5 hover:bg-white/10 border border-white/5 transition-colors">
+              Learn More
+            </button>
+          </motion.div>
         </div>
       </div>
+      
     </section>
   );
 };

@@ -13,8 +13,8 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const ORG_ID = BigInt(4);
-const USER_ID = BigInt(1);
+const ORG_ID = BigInt(8);
+const USER_ID = BigInt(4);
 
 // Product data
 const PRODUCTS = [

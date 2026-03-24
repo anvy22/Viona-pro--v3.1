@@ -1,5 +1,9 @@
+"use client";
+
 import React from "react";
 import { ArrowRight, CheckCircle } from "lucide-react";
+import { BackgroundBeams } from "@/components/ui/background-beams";
+import { motion } from "motion/react";
 
 interface CTASectionProps {
   onGetStarted: () => void;
@@ -7,79 +11,69 @@ interface CTASectionProps {
 
 const CTASection: React.FC<CTASectionProps> = ({ onGetStarted }) => {
   const benefits: string[] = [
-    "Start free 14-day trial",
-    "No credit card required",
-    "Full feature access",
-    "Cancel anytime",
+    "Real-time Inventory Tracking",
+    "Multi-Warehouse Support",
+    "Granular Role Permissions",
+    "Autonomous AI Workflows",
   ];
 
   return (
-    <section className="py-20 relative w-full">
+    <section className="py-24 relative w-full overflow-hidden bg-black">
+      {/* Background Beams */}
+      <BackgroundBeams className="opacity-30" />
+
+
+
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="max-w-4xl mx-auto text-center">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true }}
+          className="max-w-4xl mx-auto text-center"
+        >
           {/* Main CTA */}
-          <div className="space-y-8">
-            <div className="space-y-4">
-              <h2 className="text-3xl lg:text-5xl font-bold text-foreground">
-                Ready to Transform Your Business?
+          <div className="space-y-10">
+            <div className="space-y-6">
+              <h2 className="text-4xl md:text-6xl font-bold text-white tracking-tight leading-[1.1]">
+                Ready to transform your <br className="hidden md:block" />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
+                  Business operations?
+                </span>
               </h2>
-              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                Join thousands of successful businesses using Viona Pro to drive growth,
-                streamline operations, and make data-driven decisions.
+              <p className="text-lg md:text-xl text-neutral-300 max-w-2xl mx-auto">
+                Join leading businesses using Viona Pro to manage inventory, process orders, and orchestrate autonomous AI workflows.
               </p>
             </div>
 
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <button
+                onClick={onGetStarted}
+                className="h-14 px-8 inline-flex items-center justify-center font-medium rounded-lg text-white bg-emerald-500 hover:bg-emerald-600 transition-all text-lg group shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)]"
+              >
+                Join Viona Pro
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </button>
+              <button className="h-14 px-8 text-neutral-300 hover:text-white bg-white/5 border border-white/5 rounded-lg transition-colors text-lg font-medium">
+                Talk to Sales
+              </button>
+            </div>
+
             {/* Benefits List */}
-            <div className="flex flex-wrap justify-center gap-6 mb-8">
+            <div className="flex flex-wrap justify-center gap-x-8 gap-y-4 pt-8">
               {benefits.map((benefit, index) => (
                 <div
                   key={index}
-                  className="flex items-center text-sm text-muted-foreground"
+                  className="flex items-center text-sm text-neutral-500"
                 >
-                  <CheckCircle className="h-4 w-4 text-success mr-2" />
+                  <CheckCircle className="h-4 w-4 text-emerald-500 mr-2 opacity-80" />
                   {benefit}
                 </div>
               ))}
             </div>
-
-            {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button
-                onClick={onGetStarted}
-                className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold rounded-lg text-primary-foreground bg-primary hover:bg-primary/90 transition-smooth group shadow-lg hover:shadow-xl"
-              >
-                Start Your Free Trial
-                <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-              </button>
-              <button className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold rounded-lg text-foreground bg-background/60 border border-border/30 hover:bg-muted/60 transition-smooth">
-                Schedule a Demo
-              </button>
-            </div>
-
-            {/* Trust Signals */}
-            <div className="pt-8 border-t border-border/15">
-              <p className="text-sm text-muted-foreground mb-4">
-                Trusted by industry leaders
-              </p>
-              <div className="flex justify-center items-center space-x-2">
-                <div className="flex text-warning">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <svg
-                      key={i}
-                      className="w-4 h-4 fill-current"
-                      viewBox="0 0 20 20"
-                    >
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                  ))}
-                </div>
-                <span className="text-sm text-muted-foreground ml-2">
-                  4.9/5 from 1,200+ reviews
-                </span>
-              </div>
-            </div>
           </div>
-        </div>
+        </motion.div>
       </div>
     </section>
   );
