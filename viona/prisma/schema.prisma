@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   binaryTargets = ["native", "debian-openssl-3.0.x", "linux-musl-openssl-3.0.x"]
 }
 
@@ -9,21 +9,21 @@ datasource db {
 }
 
 model Organization {
-  org_id        BigInt               @id @default(autoincrement())
-  name          String
-  created_by    BigInt
-  created_at    DateTime?            @default(now())
-  updated_at    DateTime?            @updatedAt
-  orders        Order[]
-  creator       User                 @relation(fields: [created_by], references: [user_id])
-  invites       OrganizationInvite[]
-  members       OrganizationMember[]
-  products      Product[]
-  warehouses    Warehouse[]
-  workflows     Workflow[]
-  credentials   Credential[]
-  subscription  Subscription?
-  usageRecords  UsageRecord[]
+  org_id       BigInt               @id @default(autoincrement())
+  name         String
+  created_by   BigInt
+  created_at   DateTime?            @default(now())
+  updated_at   DateTime?            @updatedAt
+  credentials  Credential[]
+  orders       Order[]
+  creator      User                 @relation(fields: [created_by], references: [user_id])
+  invites      OrganizationInvite[]
+  members      OrganizationMember[]
+  products     Product[]
+  subscription Subscription?
+  usageRecords UsageRecord[]
+  warehouses   Warehouse[]
+  workflows    Workflow[]
 }
 
 model OrganizationInvite {
@@ -57,6 +57,7 @@ model User {
   email                String               @unique
   created_at           DateTime?            @default(now())
   updated_at           DateTime?            @updatedAt
+  credentials          Credential[]
   employees            Employee[]
   ordersPlaced         Order[]              @relation("PlacedBy")
   ordersUpdated        Order[]              @relation("UpdatedBy")
@@ -65,7 +66,6 @@ model User {
   productsCreated      Product[]            @relation("CreatedBy")
   productsModified     Product[]            @relation("ModifiedBy")
   workflows            Workflow[]
-  credentials          Credential[]
 }
 
 model Employee {
@@ -183,21 +183,101 @@ model OrganizationMember {
 }
 
 model Credential {
-  id         String   @id @default(uuid())
+  id         String         @id @default(uuid())
   name       String
   value      String
   type       CredentialType
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
+  created_at DateTime       @default(now())
+  updated_at DateTime       @updatedAt
   userId     BigInt
-  user       User     @relation(fields: [userId], references: [user_id], onDelete: Cascade)
-
   org_id     BigInt
-  org        Organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade)
-
+  org        Organization   @relation(fields: [org_id], references: [org_id], onDelete: Cascade)
+  user       User           @relation(fields: [userId], references: [user_id], onDelete: Cascade)
   Node       Node[]
 
+  @@index([org_id])
+}
+
+model Workflow {
+  id          String       @id @default(uuid())
+  name        String
+  description String?
+  status      String       @default("draft")
+  user_id     BigInt
+  org_id      BigInt
+  created_at  DateTime     @default(now())
+  updated_at  DateTime     @updatedAt
+  connections Connection[]
+  nodes       Node[]
+  org         Organization @relation(fields: [org_id], references: [org_id])
+  user        User         @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+
+  @@index([org_id])
+}
+
+model Node {
+  id                String       @id @default(uuid())
+  workflowId        String
+  name              String
+  type              NodeType
+  position          Json
+  data              Json         @default("{}")
+  credentialId      String?
+  created_at        DateTime     @default(now())
+  updated_at        DateTime     @updatedAt
+  outputConnections Connection[] @relation("FromNode")
+  inputConnections  Connection[] @relation("ToNode")
+  credential        Credential?  @relation(fields: [credentialId], references: [id])
+  workflow          Workflow     @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+}
+
+model Connection {
+  id         String   @id @default(uuid())
+  workflowId String
+  fromNodeId String
+  toNodeId   String
+  fromOutput String   @default("main")
+  toInput    String   @default("main")
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  fromNode   Node     @relation("FromNode", fields: [fromNodeId], references: [id], onDelete: Cascade)
+  toNode     Node     @relation("ToNode", fields: [toNodeId], references: [id], onDelete: Cascade)
+  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@unique([fromNodeId, toNodeId, fromOutput, toInput])
+}
+
+model Subscription {
+  id                     String       @id @default(uuid())
+  org_id                 BigInt       @unique
+  stripe_customer_id     String?      @unique
+  stripe_subscription_id String?      @unique
+  stripe_price_id        String?
+  plan                   String       @default("free")
+  status                 String       @default("active")
+  current_period_start   DateTime?
+  current_period_end     DateTime?
+  cancel_at_period_end   Boolean      @default(false)
+  created_at             DateTime     @default(now())
+  updated_at             DateTime     @updatedAt
+  org                    Organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade)
+
+  @@index([org_id])
+}
+
+model UsageRecord {
+  id         String       @id @default(uuid())
+  org_id     BigInt
+  period     String
+  workflows  Int          @default(0)
+  orders     Int          @default(0)
+  members    Int          @default(0)
+  ai_runs    Int          @default(0)
+  created_at DateTime     @default(now())
+  updated_at DateTime     @updatedAt
+  org        Organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade)
+
+  @@unique([org_id, period])
   @@index([org_id])
 }
 
@@ -206,29 +286,6 @@ enum CredentialType {
   ANTHROPIC
   GEMINI
   GROQ
-}
-
-/* ------------------ Workflows ------------------ */
-
-model Workflow {
-  id          String   @id @default(uuid())
-  name        String
-  description String?
-  status      String   @default("draft")
-
-  user_id     BigInt
-  user        User     @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
-
-  org_id      BigInt
-  org         Organization @relation(fields: [org_id], references: [org_id])
-
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
-
-  nodes Node[]
-  connections Connection[]
-
-  @@index([org_id])
 }
 
 enum NodeType {
@@ -258,86 +315,4 @@ enum NodeType {
   ORDER_TRIGGER
   SCHEDULED_TRIGGER
   CONDITIONAL
-}
-
-model Node{
-  id          String   @id @default(uuid())
-  workflowId  String
-  workflow    Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-
-  name        String
-  type        NodeType
-  position    Json
-  data        Json @default("{}")
-
-  credentialId String?
-  credential Credential? @relation(fields: [credentialId], references: [id])
-
-  outputConnections Connection[] @relation("FromNode")
-  inputConnections Connection[] @relation("ToNode")
-  
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
-}
-
-model Connection{
-  id          String   @id @default(uuid())
-  workflowId  String
-  workflow    Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-
-  fromNodeId  String
-  fromNode    Node @relation("FromNode", fields: [fromNodeId], references: [id], onDelete: Cascade)
-
-  toNodeId    String
-  toNode      Node @relation("ToNode", fields: [toNodeId], references: [id], onDelete: Cascade)
-
-  fromOutput  String @default("main")
-  toInput     String @default("main")
-
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
-
-  @@unique([fromNodeId, toNodeId, fromOutput, toInput])
-}
-
-/* ------------------ Billing ------------------ */
-
-model Subscription {
-  id                     String   @id @default(uuid())
-  org_id                 BigInt   @unique
-  org                    Organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade)
-
-  stripe_customer_id     String?  @unique
-  stripe_subscription_id String?  @unique
-  stripe_price_id        String?
-
-  plan                   String   @default("free")   // free | starter | pro | enterprise
-  status                 String   @default("active") // active | past_due | canceled | trialing
-
-  current_period_start   DateTime?
-  current_period_end     DateTime?
-  cancel_at_period_end   Boolean  @default(false)
-
-  created_at             DateTime @default(now())
-  updated_at             DateTime @updatedAt
-
-  @@index([org_id])
-}
-
-model UsageRecord {
-  id          String   @id @default(uuid())
-  org_id      BigInt
-  org         Organization @relation(fields: [org_id], references: [org_id], onDelete: Cascade)
-
-  period      String   // "2026-02" (YYYY-MM)
-  workflows   Int      @default(0)
-  orders      Int      @default(0)
-  members     Int      @default(0)
-  ai_runs     Int      @default(0)
-
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
-
-  @@unique([org_id, period])
-  @@index([org_id])
 }
