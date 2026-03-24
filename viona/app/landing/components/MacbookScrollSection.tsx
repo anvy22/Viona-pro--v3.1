@@ -2,6 +2,7 @@
 
 import React from "react";
 import { MacbookScroll } from "@/components/ui/macbook-scroll";
+import { LayoutTextFlip } from "@/components/ui/layout-text-flip";
 
 const MacbookScrollSection: React.FC = () => {
   return (
@@ -11,10 +12,13 @@ const MacbookScrollSection: React.FC = () => {
       
       <MacbookScroll
         title={
-          <div className="text-center font-bold tracking-tight text-white mb-6">
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 text-4xl md:text-5xl lg:text-6xl">
-              Experience the power.
-            </span>
+          <div className="mb-6">
+            <LayoutTextFlip 
+              text="Experience the power of"
+              words={["Inventory Management", "Order Fulfillment", "AI Agents", "Workflow Automation"]}
+              textClassName="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400"
+              wordClassName="dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20"
+            />
           </div>
         }
         src="/image.png"

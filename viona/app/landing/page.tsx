@@ -3,9 +3,11 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser, SignedOut, SignInButton, SignUpButton } from "@clerk/nextjs";
+import "./landing.css";
 
 import HeroSection from "./components/HeroSection";
 import MacbookScrollSection from "./components/MacbookScrollSection";
+import HeroParallaxSection from "./components/HeroParallaxSection";
 import FeaturesSection from "./components/FeaturesSection";
 import WorkflowShowcase from "./components/WorkflowShowcase";
 import PricingSection from "./components/PricingSection";
@@ -39,6 +41,7 @@ export default function LandingPage() {
         <main className="relative z-10 w-full">
           <HeroSection onGetStarted={handleGetStarted} />
           <MacbookScrollSection />
+          <HeroParallaxSection />
           <FeaturesSection />
           <WorkflowShowcase />
           <PricingSection onGetStarted={handleGetStarted} />

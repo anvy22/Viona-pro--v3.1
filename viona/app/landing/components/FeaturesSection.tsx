@@ -3,10 +3,8 @@
 import React from "react";
 import { motion } from "motion/react";
 import {
-  Brain,
   Zap,
   Package,
-  ShoppingCart,
   Warehouse,
   MessageCircle,
   HardDrive,
@@ -61,12 +59,9 @@ const FeaturesSection: React.FC = () => {
 
   return (
     <section id="features" className="py-24 relative w-full bg-black">
-      
-
-
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         
-        {/* Clean Header */}
+        {/* Header */}
         <div className="max-w-3xl mx-auto text-center mb-20">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
@@ -80,6 +75,7 @@ const FeaturesSection: React.FC = () => {
               scale exponentially
             </span>
           </motion.h2>
+
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -92,7 +88,7 @@ const FeaturesSection: React.FC = () => {
           </motion.p>
         </div>
 
-        {/* Feature Cards Grid */}
+        {/* Feature Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
           {features.map((feature, index) => {
             const IconComponent = feature.icon;
@@ -105,23 +101,26 @@ const FeaturesSection: React.FC = () => {
                 viewport={{ once: true }}
                 className="group relative"
               >
-                {/* Glow behind card on hover */}
-                <div className="absolute -inset-0.5 bg-gradient-to-br from-emerald-500/30 to-cyan-500/30 rounded-2xl blur-lg opacity-0 group-hover:opacity-100 transition duration-500 pointer-events-none"></div>
-                
-                <div className="relative h-full bg-neutral-950 border border-white/10 rounded-2xl p-8 hover:border-white/20 transition-colors duration-300 overflow-hidden flex flex-col items-start min-h-[260px]">
+                {/* Border Glow */}
+                <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-br from-[#3ECF8E] via-[#3ECF8E] to-transparent opacity-0 group-hover:opacity-100 transition duration-500 pointer-events-none"></div>
+
+                {/* Card */}
+                <div className="relative h-full bg-neutral-950 border border-white/10 rounded-2xl p-8 transition-all duration-300 overflow-hidden flex flex-col items-start min-h-[260px] group-hover:scale-[1.03] group-hover:-translate-y-1">
                   
-                  {/* Subtle inner top-light gradient for 3D effect */}
+                  {/* Top Light Line */}
                   <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 
-                  {/* Icon Container with subtle color tint */}
-                  <div className="mb-6 inline-flex items-center justify-center w-12 h-12 rounded-xl bg-white/5 border border-white/5 shadow-inner group-hover:scale-110 transition-transform duration-300 ease-out group-hover:bg-white/10 group-hover:border-white/10">
+                  {/* Icon */}
+                  <div className="mb-6 inline-flex items-center justify-center w-12 h-12 rounded-xl bg-white/5 border border-white/5 shadow-inner">
                     <IconComponent className="h-5 w-5 text-neutral-300 group-hover:text-emerald-400 transition-colors duration-300" />
                   </div>
 
-                  <h3 className="text-xl font-semibold text-white mb-3 tracking-tight group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-neutral-400 transition-all duration-300">
+                  {/* Title */}
+                  <h3 className="text-xl font-semibold text-white mb-3 tracking-tight">
                     {feature.title}
                   </h3>
-                  
+
+                  {/* Description */}
                   <p className="text-neutral-400 text-sm leading-relaxed mt-auto">
                     {feature.description}
                   </p>
