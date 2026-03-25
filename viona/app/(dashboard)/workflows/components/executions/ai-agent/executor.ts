@@ -547,7 +547,7 @@ export const aiAgentExecutor: NodeExecutor<AiAgentData> = async ({ data, nodeId,
 
     // ----- 6. Run agentic loop -----
     try {
-        if (orgId) {
+        if (orgId && process.env.DISABLE_BILLING_LIMITS !== "true") {
             const usageStats = await getUsageStats(orgId.toString());
             if (usageStats && !usageStats.aiRuns.allowed) {
                 throw new Error("AI Agent monthly run limit reached. Please upgrade your plan.");
