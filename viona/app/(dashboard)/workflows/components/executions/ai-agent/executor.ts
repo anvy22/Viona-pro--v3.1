@@ -50,7 +50,7 @@ function createModelInstance(provider: string, model: string, apiKey: string) {
         }
         case "groq": {
             const groq = createGroq({ apiKey });
-            return groq(model || "llama3-8b-8192");
+            return groq(model || "llama-3.1-8b-instant");
         }
         case "gemini":
         default: {

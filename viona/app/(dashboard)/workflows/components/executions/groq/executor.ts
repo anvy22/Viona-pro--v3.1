@@ -70,7 +70,7 @@ export const groqExecutor: NodeExecutor<GroqData> = async ({ data, nodeId, conte
 
     try {
         const result = await generateText({
-            model: groq(data.model || "llama3-8b-8192"),
+            model: groq(data.model || "llama-3.1-8b-instant"),
             system: systemPrompt,
             prompt: userPrompt,
         });
