@@ -118,7 +118,7 @@ function StoragePageContent() {
       // entire non-trash toolbar (Upload, New Folder, Trash, Paste).
       // Rename such a segment so the URL never contains a bare "trash" token.
       const safeSegments = segments.map((s) =>
-        s.toLowerCase() === "trash" ? `${s}_(folder)` : s
+        s.toLowerCase() === "trash" ? `${s}_(folder)` : s,
       );
       // Cache path → folderId at every level so back-nav can recover IDs
       newHistory.slice(1).forEach((h, i) => {
@@ -128,17 +128,39 @@ function StoragePageContent() {
           .join("/");
         if (h.id) sessionStorage.setItem(`storage_id:${partialPath}`, h.id);
       });
-      router.push(`/storage${safeSegments.length ? `/${safeSegments.join("/")}` : ""}`);
+      router.push(
+        `/storage${safeSegments.length ? `/${safeSegments.join("/")}` : ""}`,
+      );
     },
     [router],
   );
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
 
-  // Clipboard state for copy/cut/paste
+  // Clipboard state for copy/cut/paste.
+  // Initialised from sessionStorage so it survives folder navigation
+  // (router.push remounts the component, resetting plain useState to null).
   const [clipboard, setClipboard] = useState<{
     item: FileItem;
     operation: "copy" | "cut";
-  } | null>(null);
+  } | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const saved = sessionStorage.getItem("storage_clipboard");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  // Keep sessionStorage in sync with clipboard so the Paste button survives
+  // folder navigation (component remounts reset useState to its initializer).
+  useEffect(() => {
+    if (clipboard) {
+      sessionStorage.setItem("storage_clipboard", JSON.stringify(clipboard));
+    } else {
+      sessionStorage.removeItem("storage_clipboard");
+    }
+  }, [clipboard]);
 
   // Modal State
   const [modals, setModals] = useState({
@@ -857,9 +879,7 @@ function StoragePageContent() {
           ? `"${pastedItem.name}" moved successfully`
           : `"${pastedItem.name}" copied successfully`,
       error: (err) =>
-        `Paste failed: ${
-          err instanceof Error ? err.message : "Unknown error"
-        }`,
+        `Paste failed: ${err instanceof Error ? err.message : "Unknown error"}`,
     });
   };
 
@@ -934,7 +954,7 @@ function StoragePageContent() {
           usagePercent={usagePercent}
           usedBytes={usedBytes}
           clipboardItemName={clipboard?.item.name ?? null}
-          onPaste={handlePaste}
+          onPaste={() => handlePaste()}
         />
 
         {loading ? (
