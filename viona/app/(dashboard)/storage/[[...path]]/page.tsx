@@ -32,7 +32,21 @@ function StoragePageContent() {
       ? [params.path as string]
       : [];
   const orgIds = orgs.map((o) => String(o.id));
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "list">(() => {
+    // Read persisted preference from localStorage on first render.
+    // Falls back to "grid" if nothing is stored yet.
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("storage_view_mode");
+      if (saved === "list" || saved === "grid") return saved;
+    }
+    return "grid";
+  });
+
+  // Persist the user's view preference so it survives navigation and refresh.
+  useEffect(() => {
+    localStorage.setItem("storage_view_mode", viewMode);
+  }, [viewMode]);
+
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
 
   const { getToken } = useAuth();
@@ -58,7 +72,7 @@ function StoragePageContent() {
     .join("/");
   const _initFolderId =
     typeof window !== "undefined" && _initPathStr
-      ? sessionStorage.getItem(`storage_id:${_initPathStr}`) ?? null
+      ? (sessionStorage.getItem(`storage_id:${_initPathStr}`) ?? null)
       : null;
 
   const [currentView, setCurrentView] = useState<"drive" | "trash">(_initView);
@@ -98,9 +112,7 @@ function StoragePageContent() {
           .join("/");
         if (h.id) sessionStorage.setItem(`storage_id:${partialPath}`, h.id);
       });
-      router.push(
-        `/storage${segments.length ? `/${segments.join("/")}` : ""}`,
-      );
+      router.push(`/storage${segments.length ? `/${segments.join("/")}` : ""}`);
     },
     [router],
   );
@@ -186,10 +198,7 @@ function StoragePageContent() {
   };
 
   const handleFolderClick = (folder: FileItem) => {
-    const newHistory = [
-      ...folderHistory,
-      { id: folder.id, name: folder.name },
-    ];
+    const newHistory = [...folderHistory, { id: folder.id, name: folder.name }];
     setCurrentFolderId(folder.id);
     setSearchQuery("");
     setFolderHistory(newHistory);
