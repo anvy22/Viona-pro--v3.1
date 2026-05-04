@@ -21,6 +21,15 @@ import { useOrgStore } from "@/hooks/useOrgStore";
 import { OrganizationState } from "@/components/OrganizationState";
 import { toast } from "sonner";
 
+// ── Module-level singletons — survive component remounts ──────────────────
+// These live outside the React component so they are NOT destroyed when the
+// user navigates away and comes back. The cache is keyed by
+// `${view}:${folderId ?? "root"}:${orgId ?? "none"}`.
+const _folderCache = new Map<string, { data: FileItem[]; ts: number }>();
+const _previewCache = new Map<string, string>(); // fileId → signed URL
+const _orgEnsured = new Set<string>();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes before a silent background refresh
+
 function StoragePageContent() {
   const { selectedOrgId, orgs, setSelectedOrgId } = useOrgStore();
   const router = useRouter();
@@ -151,13 +160,11 @@ function StoragePageContent() {
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ── In-memory folder cache (stale-while-revalidate) ──────────────────────
-  // Key format: `${view}:${folderId ?? "root"}:${orgId ?? "none"}`
-  // Persists for the entire browser session. Never triggers re-renders.
-  const folderCache = useRef<Map<string, FileItem[]>>(new Map());
-  // Tracks which org IDs have already had their folder hierarchy ensured this
-  // session so we don't make that extra API call on every folder navigation.
-  const orgEnsuredRef = useRef<Set<string>>(new Set());
+  // ── Point component refs at module-level singletons ─────────────────────
+  // folderCache and orgEnsuredRef now reference the module-level singletons
+  // above, so the cache persists across remounts and page navigations.
+  const folderCache = useRef(_folderCache);
+  const orgEnsuredRef = useRef(_orgEnsured);
 
   const currentItems =
     currentView === "trash"
@@ -243,26 +250,38 @@ function StoragePageContent() {
   const loadFiles = async (showToast: boolean = false) => {
     const key = `${currentView}:${currentFolderId ?? "root"}:${selectedOrgId ?? "none"}`;
     const cached = folderCache.current.get(key);
+    const isStale = cached ? Date.now() - cached.ts > CACHE_TTL_MS : false;
 
     if (cached) {
-      // ── Cache HIT: render instantly, revalidate silently in background ──
-      setItems(cached);
-      try {
-        const token = await getToken();
-        if (!token) return;
-        const orgIds = orgs.map((o) => String(o.id));
-        const freshData = await StorageApi.listFiles(
-          token,
-          currentView === "trash" ? null : currentFolderId,
-          currentView === "trash",
-          orgIds,
-        );
-        folderCache.current.set(key, freshData);
-        setItems(freshData);
-        loadPreviewUrls(freshData);
-      } catch (err) {
-        console.error("Background revalidation failed", err);
-        // Silently ignore — user already sees the cached version
+      // ── Cache HIT: render instantly from cache ──────────────────────
+      setItems(cached.data);
+      // Always restore preview URLs from _previewCache into React state.
+      // Without this line, previewUrls stays {} on every remount / revisit
+      // because the fresh-cache path exits before calling loadPreviewUrls.
+      // loadPreviewUrls makes ZERO API calls here — it just reads the
+      // module-level map and calls setPreviewUrls.
+      loadPreviewUrls(cached.data);
+
+      // Only revalidate in background if stale or explicitly forced
+      if (isStale || showToast) {
+        try {
+          const token = await getToken();
+          if (!token) return;
+          const orgIds = orgs.map((o) => String(o.id));
+          const freshData = await StorageApi.listFiles(
+            token,
+            currentView === "trash" ? null : currentFolderId,
+            currentView === "trash",
+            orgIds,
+          );
+          folderCache.current.set(key, { data: freshData, ts: Date.now() });
+          setItems(freshData);
+          loadPreviewUrls(freshData);
+          prefetchChildFolders(freshData);
+        } catch (err) {
+          console.error("Background revalidation failed", err);
+          // Silently ignore — user already sees the cached version
+        }
       }
       return;
     }
@@ -296,9 +315,10 @@ function StoragePageContent() {
         StorageApi.getUsage(token),
       ]);
 
-      folderCache.current.set(key, data); // store in cache
+      folderCache.current.set(key, { data, ts: Date.now() }); // store in cache with timestamp
       setItems(data);
       loadPreviewUrls(data);
+      prefetchChildFolders(data); // warm cache for subfolders in background
       setUsagePercent(usageData.percentage);
       setUsedBytes(usageData.usedBytes);
     } catch (err) {
@@ -314,11 +334,21 @@ function StoragePageContent() {
   const invalidateCache = () => {
     const key = `${currentView}:${currentFolderId ?? "root"}:${selectedOrgId ?? "none"}`;
     folderCache.current.delete(key);
+    // Also clear any cached preview URLs for items in this folder so they
+    // are re-fetched after mutations (rename, delete, upload, etc.)
+    for (const item of items) {
+      _previewCache.delete(item.id);
+    }
   };
 
   const loadPreviewUrls = async (files: FileItem[]) => {
     const token = await getToken();
     if (!token) return;
+    // Capture orgIds fresh at call time — avoids stale closure bug where
+    // orgIds captured at function-definition time could be [] if orgs
+    // hadn't loaded yet, causing the server to reject the signed URL request.
+    const currentOrgIds = orgs.map((o) => String(o.id));
+
     const previewable = files.filter(
       (f) =>
         f.type !== "folder" &&
@@ -329,20 +359,64 @@ function StoragePageContent() {
           f.type === "video" ||
           f.type.startsWith("video/")),
     );
-    const entries = await Promise.allSettled(
-      previewable.map(async (f) => {
-        const url = await StorageApi.getViewUrl(token, f.id, orgIds);
-        return [f.id, url] as [string, string];
+
+    // Only fetch URLs for files that aren't already in the module-level preview cache
+    const needsFetch = previewable.filter((f) => !_previewCache.has(f.id));
+
+    await Promise.allSettled(
+      needsFetch.map(async (f) => {
+        try {
+          const url = await StorageApi.getViewUrl(token, f.id, currentOrgIds);
+          _previewCache.set(f.id, url); // store in module-level cache
+        } catch {
+          // silent — a failed URL won't block other previews from showing
+        }
       }),
     );
+
+    // Build the display map entirely from _previewCache
+    // (includes both pre-existing hits and URLs just fetched above)
     const map: Record<string, string> = {};
-    for (const result of entries) {
-      if (result.status === "fulfilled") {
-        map[result.value[0]] = result.value[1];
-      }
+    for (const f of previewable) {
+      const hit = _previewCache.get(f.id);
+      if (hit) map[f.id] = hit;
     }
     setPreviewUrls(map);
   };
+
+  // ── Background pre-fetch of direct child folders ───────────────────────
+  // Called after a folder loads. Silently warms the cache for every
+  // subfolder so the next click into them is instant (no skeleton).
+  const prefetchChildFolders = useCallback(
+    async (parentItems: FileItem[]) => {
+      const token = await getToken();
+      if (!token) return;
+      const subfolders = parentItems.filter((f) => f.type === "folder");
+      const orgIds = orgs.map((o) => String(o.id));
+
+      await Promise.allSettled(
+        subfolders.map(async (folder) => {
+          const key = `drive:${folder.id}:${selectedOrgId ?? "none"}`;
+          // Skip if already cached and still fresh
+          const existing = folderCache.current.get(key);
+          if (existing && Date.now() - existing.ts < CACHE_TTL_MS) return;
+
+          try {
+            const data = await StorageApi.listFiles(
+              token,
+              folder.id,
+              false,
+              orgIds,
+            );
+            folderCache.current.set(key, { data, ts: Date.now() });
+          } catch {
+            // silent — best-effort only, never blocks the UI
+          }
+        }),
+      );
+    },
+    [getToken, orgs, selectedOrgId],
+  );
 
   useEffect(() => {
     loadFiles();
