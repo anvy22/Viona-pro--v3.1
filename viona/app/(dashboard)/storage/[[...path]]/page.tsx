@@ -566,7 +566,11 @@ function StoragePageContent() {
     if (!selectedFile) return;
 
     const deletePromise = async () => {
-      invalidateCache();
+      invalidateCache(); // invalidate current drive folder
+      // Also bust the Trash cache so opening Trash immediately shows the
+      // newly deleted file without requiring a manual refresh.
+      const trashKey = `trash:null:${selectedOrgId ?? "none"}`;
+      folderCache.current.delete(trashKey);
       const token = await getToken();
       if (!token) throw new Error("Authentication error");
       await StorageApi.trashItem(token, selectedFile.id, orgIds);
@@ -584,15 +588,23 @@ function StoragePageContent() {
 
   const handleRestore = async () => {
     if (!selectedFile) return;
-    const token = await getToken();
-    if (!token) return;
-    await StorageApi.restoreItem(token, selectedFile.id, orgIds);
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === selectedFile.id ? { ...item, isTrashed: false } : item,
-      ),
-    );
-    setSelectedFile(null);
+    // Invalidate the Trash cache (current view) so the restored file
+    // disappears immediately without a manual refresh.
+    invalidateCache();
+    // Also invalidate the drive folder the file is being restored TO so
+    // navigating there shows the file straight away.
+    const driveKey = `drive:${selectedFile.parentId ?? "root"}:${selectedOrgId ?? "none"}`;
+    folderCache.current.delete(driveKey);
+    try {
+      const token = await getToken();
+      if (!token) return;
+      await StorageApi.restoreItem(token, selectedFile.id, orgIds);
+      setSelectedFile(null);
+      setModals((prev) => ({ ...prev, delete: false }));
+      await loadFiles(); // refresh Trash — restored file will be gone
+    } catch (err) {
+      console.error("Failed to restore", err);
+    }
   };
 
   const handleEmptyTrash = async () => {
@@ -864,7 +876,7 @@ function StoragePageContent() {
         setClipboard(null); // Clear clipboard after cut-paste (one-time move)
       } else {
         await StorageApi.copyItem(token, pastedItem.id, destinationId);
-        // Clipboard stays so the user can paste to multiple destinations
+        setClipboard(null); // Clear clipboard after copy-paste (one-time use)
       }
       await loadFiles();
     };
