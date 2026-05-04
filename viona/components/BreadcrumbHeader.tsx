@@ -34,7 +34,7 @@ export const BreadcrumbHeader = () => {
             ? '/'
             : '/' + segments.slice(1, index + 1).join('/');
 
-        const label = segment === '' ? 'Dashboard' : segment;
+        const label = segment === '' ? 'Dashboard' : decodeURIComponent(segment);
 
         return { href, label };
     });
