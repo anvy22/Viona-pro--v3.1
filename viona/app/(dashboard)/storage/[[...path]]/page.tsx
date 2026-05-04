@@ -139,6 +139,14 @@ function StoragePageContent() {
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // ── In-memory folder cache (stale-while-revalidate) ──────────────────────
+  // Key format: `${view}:${folderId ?? "root"}:${orgId ?? "none"}`
+  // Persists for the entire browser session. Never triggers re-renders.
+  const folderCache = useRef<Map<string, FileItem[]>>(new Map());
+  // Tracks which org IDs have already had their folder hierarchy ensured this
+  // session so we don't make that extra API call on every folder navigation.
+  const orgEnsuredRef = useRef<Set<string>>(new Set());
+
   const currentItems =
     currentView === "trash"
       ? items.filter(
@@ -224,33 +232,64 @@ function StoragePageContent() {
   // --- Actions ---
 
   const loadFiles = async (showToast: boolean = false) => {
-    // Skeleton UI handles the loading state visually — no toast needed
+    const key = `${currentView}:${currentFolderId ?? "root"}:${selectedOrgId ?? "none"}`;
+    const cached = folderCache.current.get(key);
 
+    if (cached) {
+      // ── Cache HIT: render instantly, revalidate silently in background ──
+      setItems(cached);
+      try {
+        const token = await getToken();
+        if (!token) return;
+        const orgIds = orgs.map((o) => String(o.id));
+        const freshData = await StorageApi.listFiles(
+          token,
+          currentView === "trash" ? null : currentFolderId,
+          currentView === "trash",
+          orgIds,
+        );
+        folderCache.current.set(key, freshData);
+        setItems(freshData);
+        loadPreviewUrls(freshData);
+      } catch (err) {
+        console.error("Background revalidation failed", err);
+        // Silently ignore — user already sees the cached version
+      }
+      return;
+    }
+
+    // ── Cache MISS: show skeleton, fetch, store ──────────────────────────
     try {
       setLoading(true);
       const token = await getToken();
       if (!token) return;
 
-      // Ensure org folder hierarchy exists
-      if (selectedOrgId) {
+      // Ensure org folder hierarchy — only once per org per session
+      if (selectedOrgId && !orgEnsuredRef.current.has(selectedOrgId)) {
         const org = orgs.find((o) => String(o.id) === String(selectedOrgId));
         if (org) {
           await StorageApi.ensureOrgFolder(token, String(org.id), org.name);
+          orgEnsuredRef.current.add(selectedOrgId); // never run again for this org
         }
       }
 
       // Pass all user's org IDs so the server includes org files
       const orgIds = orgs.map((o) => String(o.id));
 
-      const data = await StorageApi.listFiles(
-        token,
-        currentView === "trash" ? null : currentFolderId,
-        currentView === "trash",
-        orgIds,
-      );
+      // Run listFiles and getUsage in parallel — saves one full round trip
+      const [data, usageData] = await Promise.all([
+        StorageApi.listFiles(
+          token,
+          currentView === "trash" ? null : currentFolderId,
+          currentView === "trash",
+          orgIds,
+        ),
+        StorageApi.getUsage(token),
+      ]);
+
+      folderCache.current.set(key, data); // store in cache
       setItems(data);
       loadPreviewUrls(data);
-      const usageData = await StorageApi.getUsage(token);
       setUsagePercent(usageData.percentage);
       setUsedBytes(usageData.usedBytes);
     } catch (err) {
@@ -259,6 +298,13 @@ function StoragePageContent() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Removes the current folder's cache entry so the next loadFiles call
+  // fetches fresh data from the server. Call this before any mutation.
+  const invalidateCache = () => {
+    const key = `${currentView}:${currentFolderId ?? "root"}:${selectedOrgId ?? "none"}`;
+    folderCache.current.delete(key);
   };
 
   const loadPreviewUrls = async (files: FileItem[]) => {
@@ -369,6 +415,7 @@ function StoragePageContent() {
   }, [searchQuery]);
 
   const handleCreateFolder = async (name: string) => {
+    invalidateCache();
     try {
       const token = await getToken();
       if (!token) return;
@@ -381,6 +428,7 @@ function StoragePageContent() {
 
   const handleRename = async (newName: string) => {
     if (!selectedFile) return;
+    invalidateCache();
     try {
       const token = await getToken();
       if (!token) return;
@@ -396,6 +444,7 @@ function StoragePageContent() {
     if (!selectedFile) return;
 
     const deletePromise = async () => {
+      invalidateCache();
       const token = await getToken();
       if (!token) throw new Error("Authentication error");
       await StorageApi.trashItem(token, selectedFile.id, orgIds);
@@ -425,6 +474,7 @@ function StoragePageContent() {
   };
 
   const handleEmptyTrash = async () => {
+    invalidateCache();
     try {
       const token = await getToken();
       if (!token) return;
@@ -440,6 +490,7 @@ function StoragePageContent() {
     if (!selectedFile) return;
 
     const deletePromise = async () => {
+      invalidateCache();
       const token = await getToken();
       if (!token) throw new Error("Authentication error");
       await StorageApi.deleteItem(token, selectedFile.id, orgIds);
@@ -456,6 +507,7 @@ function StoragePageContent() {
   };
 
   const handleRestoreAll = async () => {
+    invalidateCache();
     try {
       const token = await getToken();
       if (!token) return;
@@ -519,6 +571,7 @@ function StoragePageContent() {
 
   const doUpload = (file: File, mode: "replace" | "keep" | undefined) => {
     const uploadPromise = async () => {
+      invalidateCache();
       const token = await getToken();
       if (!token) throw new Error("Authentication error");
       await StorageApi.uploadFile(token, file, currentFolderId, mode);
@@ -651,6 +704,7 @@ function StoragePageContent() {
 
   const handlePaste = async () => {
     if (!clipboard) return;
+    invalidateCache();
     try {
       const token = await getToken();
       if (!token) return;
