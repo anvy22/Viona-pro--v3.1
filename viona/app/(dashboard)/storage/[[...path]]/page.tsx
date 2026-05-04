@@ -10,6 +10,7 @@ import NewFolderDialog from "../components/NewFolderDialog";
 import RenameDialog from "../components/RenameDialog";
 import DeleteDialog from "../components/DeleteDialog";
 import ContextMenu from "../components/ContextMenu";
+import { StorageSkeleton } from "../components/StorageSkeleton";
 
 import { useAuth } from "@clerk/nextjs";
 import * as StorageApi from "@/lib/storageApi";
@@ -222,11 +223,8 @@ function StoragePageContent() {
 
   // --- Actions ---
 
-  const loadFiles = async (showToast: boolean = true) => {
-    let loadingToastId;
-    if (showToast && !loading) {
-      loadingToastId = toast.loading("Loading...");
-    }
+  const loadFiles = async (showToast: boolean = false) => {
+    // Skeleton UI handles the loading state visually — no toast needed
 
     try {
       setLoading(true);
@@ -255,15 +253,11 @@ function StoragePageContent() {
       const usageData = await StorageApi.getUsage(token);
       setUsagePercent(usageData.percentage);
       setUsedBytes(usageData.usedBytes);
-
-      if (loadingToastId) toast.dismiss(loadingToastId);
     } catch (err) {
       console.error("Failed to load files", err);
-      if (loadingToastId) toast.dismiss(loadingToastId);
       toast.error("Failed to load files");
     } finally {
       setLoading(false);
-      if (loadingToastId) toast.dismiss(loadingToastId);
     }
   };
 
@@ -800,7 +794,9 @@ function StoragePageContent() {
           onPaste={handlePaste}
         />
 
-        {viewMode === "grid" ? (
+        {loading ? (
+          <StorageSkeleton viewMode={viewMode} />
+        ) : viewMode === "grid" ? (
           <div
             className="flex-1 overflow-y-auto min-h-0 space-y-8 pb-10"
             onContextMenu={(e) => {
@@ -861,7 +857,7 @@ function StoragePageContent() {
               <div className="flex-1 flex items-center justify-center text-gray-500 flex-col gap-2 mt-20">
                 <div className="text-lg font-medium">This folder is empty</div>
                 <div className="text-sm">
-                  Use the "New Folder" button to create one
+                  Use the &quot;New Folder&quot; button to create one
                 </div>
               </div>
             )}
