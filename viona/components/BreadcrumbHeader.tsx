@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/breadcrumb"
 
 import { usePathname } from 'next/navigation'
+import Link from 'next/link'
 import { MobileSidebar } from './DesktopSidebar'
 
 export const BreadcrumbHeader = () => {
@@ -48,8 +49,8 @@ export const BreadcrumbHeader = () => {
                         {breadcrumbs.map((crumb, index) => (
                             <React.Fragment key={index}>
                                 <BreadcrumbItem>
-                                    <BreadcrumbLink className='capitalize' href={crumb.href}>
-                                        {crumb.label}
+                                    <BreadcrumbLink asChild className='capitalize'>
+                                        <Link href={crumb.href}>{crumb.label}</Link>
                                     </BreadcrumbLink>
                                 </BreadcrumbItem>
                                 {index < breadcrumbs.length - 1 && <BreadcrumbSeparator />}
