@@ -1,29 +1,37 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
-import Toolbar from "./components/Toolbar";
-import FolderCard from "./components/FolderCard";
-import FileCard from "./components/FileCard";
-import FileList from "./components/FileList";
-import DetailsDialog from "./components/DetailsDialog";
-import NewFolderDialog from "./components/NewFolderDialog";
-import RenameDialog from "./components/RenameDialog";
-import DeleteDialog from "./components/DeleteDialog";
-import ContextMenu from "./components/ContextMenu";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { useRouter, useParams } from "next/navigation";
+import Toolbar from "../components/Toolbar";
+import FolderCard from "../components/FolderCard";
+import FileCard from "../components/FileCard";
+import FileList from "../components/FileList";
+import DetailsDialog from "../components/DetailsDialog";
+import NewFolderDialog from "../components/NewFolderDialog";
+import RenameDialog from "../components/RenameDialog";
+import DeleteDialog from "../components/DeleteDialog";
+import ContextMenu from "../components/ContextMenu";
 
 import { useAuth } from "@clerk/nextjs";
 import * as StorageApi from "@/lib/storageApi";
-import { FileItem } from "./types";
+import { FileItem } from "../types";
 import { cn } from "@/lib/utils";
 import { ArrowLeft } from "lucide-react";
 import { useOrgStore } from "@/hooks/useOrgStore";
 import { OrganizationState } from "@/components/OrganizationState";
 import { toast } from "sonner";
 
-export default function Home() {
+function StoragePageContent() {
   const { selectedOrgId, orgs, setSelectedOrgId } = useOrgStore();
+  const router = useRouter();
+  const params = useParams();
+  // Normalise the catch-all path segments
+  const _rawPath = Array.isArray(params.path)
+    ? (params.path as string[])
+    : params.path
+      ? [params.path as string]
+      : [];
   const orgIds = orgs.map((o) => String(o.id));
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [currentView, setCurrentView] = useState<"drive" | "trash">("drive");
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
 
   const { getToken } = useAuth();
@@ -32,8 +40,30 @@ export default function Home() {
   const [usagePercent, setUsagePercent] = useState(0);
   const [usedBytes, setUsedBytes] = useState(0);
 
-  // Navigation State
-  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  // ── Navigation State — bootstrapped from URL path ───────────────────────────
+  // URL shape (folder names, not IDs):
+  //   /storage                     ← My Drive root
+  //   /storage/Invoices            ← inside "Invoices"
+  //   /storage/Invoices/Q1         ← nested
+  //   /storage/trash               ← Trash view
+  // Folder IDs are cached in sessionStorage keyed by name-path so that
+  // browser back / forward can restore the correct API folder without
+  // storing UUIDs in the visible URL.
+  const _isTrash = _rawPath[0] === "trash";
+  const _initView: "drive" | "trash" = _isTrash ? "trash" : "drive";
+  const _initPathStr = _rawPath
+    .filter((s) => s !== "trash")
+    .map(decodeURIComponent)
+    .join("/");
+  const _initFolderId =
+    typeof window !== "undefined" && _initPathStr
+      ? sessionStorage.getItem(`storage_id:${_initPathStr}`) ?? null
+      : null;
+
+  const [currentView, setCurrentView] = useState<"drive" | "trash">(_initView);
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(
+    _initFolderId,
+  );
   const [folderHistory, setFolderHistory] = useState<
     { id: string | null; name: string }[]
   >([{ id: null, name: "My Drive" }]);
@@ -41,6 +71,38 @@ export default function Home() {
   // Data State
   const [items, setItems] = useState<FileItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // ── URL sync helper ───────────────────────────────────────────────────────
+  // Pushes a clean, human-readable path entry on every in-page navigation.
+  // Also caches the path→folderId mapping in sessionStorage so the ID can
+  // be recovered when the browser navigates back to this URL.
+  const pushNavToUrl = useCallback(
+    (
+      newView: "drive" | "trash",
+      newHistory: { id: string | null; name: string }[],
+    ) => {
+      if (newView === "trash") {
+        router.push("/storage/trash");
+        return;
+      }
+      // Build path from folder names (root "My Drive" = /storage)
+      const segments = newHistory
+        .slice(1) // skip root
+        .map((h) => encodeURIComponent(h.name));
+      // Cache path → folderId at every level so back-nav can recover IDs
+      newHistory.slice(1).forEach((h, i) => {
+        const partialPath = newHistory
+          .slice(1, i + 2)
+          .map((x) => x.name)
+          .join("/");
+        if (h.id) sessionStorage.setItem(`storage_id:${partialPath}`, h.id);
+      });
+      router.push(
+        `/storage${segments.length ? `/${segments.join("/")}` : ""}`,
+      );
+    },
+    [router],
+  );
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
 
   // Clipboard state for copy/cut/paste
@@ -115,10 +177,15 @@ export default function Home() {
   };
 
   const handleFolderClick = (folder: FileItem) => {
+    const newHistory = [
+      ...folderHistory,
+      { id: folder.id, name: folder.name },
+    ];
     setCurrentFolderId(folder.id);
     setSearchQuery("");
-    setFolderHistory((prev) => [...prev, { id: folder.id, name: folder.name }]);
+    setFolderHistory(newHistory);
     setSelectedFile(null);
+    pushNavToUrl(currentView, newHistory);
   };
 
   const navigateToBreadcrumb = (index: number) => {
@@ -127,18 +194,22 @@ export default function Home() {
     setFolderHistory(newHistory);
     setCurrentFolderId(newHistory[newHistory.length - 1].id);
     setSelectedFile(null);
+    pushNavToUrl(currentView, newHistory);
   };
 
   const handleBack = () => {
     if (searchQuery) {
       setSearchQuery("");
+      pushNavToUrl(currentView, folderHistory);
       return;
     }
 
     if (currentView === "trash") {
+      const driveHistory = [{ id: null, name: "My Drive" }];
       setCurrentView("drive");
-      setFolderHistory([{ id: null, name: "My Drive" }]);
+      setFolderHistory(driveHistory);
       setCurrentFolderId(null);
+      pushNavToUrl("drive", driveHistory);
       return;
     }
     if (folderHistory.length <= 1) return;
@@ -146,6 +217,7 @@ export default function Home() {
     setFolderHistory(newHistory);
     setCurrentFolderId(newHistory[newHistory.length - 1].id);
     setSelectedFile(null);
+    pushNavToUrl(currentView, newHistory);
   };
 
   // --- Actions ---
@@ -226,6 +298,53 @@ export default function Home() {
   useEffect(() => {
     loadFiles();
   }, [currentFolderId, currentView, selectedOrgId]); // Re-fetch when folder, view, or org changes
+
+  // ── Sync state when the browser navigates back / forward ─────────────────
+  // When the browser Back/Forward button fires, Next.js updates `params.path`.
+  // We rebuild state from the path segments + sessionStorage ID cache.
+  useEffect(() => {
+    const rawPath = Array.isArray(params.path)
+      ? (params.path as string[])
+      : params.path
+        ? [params.path as string]
+        : [];
+
+    if (rawPath[0] === "trash") {
+      setCurrentView("trash");
+      setFolderHistory([{ id: "trash", name: "Trash" }]);
+      setCurrentFolderId(null);
+      setSelectedFile(null);
+      setSearchQuery("");
+      return;
+    }
+
+    setCurrentView("drive");
+    setSelectedFile(null);
+    setSearchQuery("");
+
+    if (rawPath.length === 0) {
+      setCurrentFolderId(null);
+      setFolderHistory([{ id: null, name: "My Drive" }]);
+      return;
+    }
+
+    // Rebuild breadcrumb history from path names + cached IDs
+    const newHistory: { id: string | null; name: string }[] = [
+      { id: null, name: "My Drive" },
+    ];
+    for (let i = 0; i < rawPath.length; i++) {
+      const name = decodeURIComponent(rawPath[i]);
+      const partialPath = rawPath
+        .slice(0, i + 1)
+        .map(decodeURIComponent)
+        .join("/");
+      const id = sessionStorage.getItem(`storage_id:${partialPath}`) ?? null;
+      newHistory.push({ id, name });
+    }
+    const lastId = newHistory[newHistory.length - 1]?.id ?? null;
+    setFolderHistory(newHistory);
+    setCurrentFolderId(lastId);
+  }, [params.path]); // Re-runs whenever the URL path changes
 
   // When searchQuery changes, fire a server-side search so we get results
   // from ALL nested folders, not just the currently loaded folder level.
@@ -516,10 +635,12 @@ export default function Home() {
   };
 
   const handleTrashClick = () => {
+    const trashHistory = [{ id: "trash", name: "Trash" }];
     setCurrentView("trash");
-    setFolderHistory([{ id: "trash", name: "Trash" }]);
+    setFolderHistory(trashHistory);
     setSelectedFile(null);
     setSearchQuery(""); // Clear search when switching to trash
+    pushNavToUrl("trash", trashHistory);
   };
 
   const handleCopy = (item?: FileItem) => {
@@ -859,4 +980,8 @@ export default function Home() {
       </div>
     </div>
   );
+}
+
+export default function Home() {
+  return <StoragePageContent />;
 }
