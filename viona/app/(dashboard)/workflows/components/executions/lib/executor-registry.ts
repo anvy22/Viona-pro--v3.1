@@ -25,6 +25,7 @@ import { inventoryTriggerExecutor } from "../../triggers/inventory-trigger/execu
 import { orderTriggerExecutor } from "../../triggers/order-trigger/executor";
 import { scheduledTriggerExecutor } from "../../triggers/scheduled-trigger/executor";
 import { conditionalExecutor } from "../../executions/conditional/executor";
+import { googleSheetsExecutor } from "../../executions/google-sheets/executor";
 
 export const executorRegistry: Record<NodeType, NodeExecutor<any>> = {
     [NodeType.CONDITIONAL]: conditionalExecutor,
@@ -53,6 +54,7 @@ export const executorRegistry: Record<NodeType, NodeExecutor<any>> = {
     [NodeType.INVENTORY_TRIGGER]: inventoryTriggerExecutor,
     [NodeType.ORDER_TRIGGER]: orderTriggerExecutor,
     [NodeType.SCHEDULED_TRIGGER]: scheduledTriggerExecutor,
+    [NodeType.GOOGLE_SHEETS]: googleSheetsExecutor,
 };
 
 export const getExecutor = (type: NodeType): NodeExecutor => {

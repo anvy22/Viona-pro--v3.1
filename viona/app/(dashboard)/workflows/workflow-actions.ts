@@ -6,6 +6,7 @@ import { auth } from "@clerk/nextjs/server";
 import { Prisma, NodeType } from "@prisma/client";
 import { enqueueWorkflow } from "@/lib/queue";
 import { getUsageStats } from "@/app/(dashboard)/billing/billing-actions";
+import { CacheService } from "@/lib/cache";
 
 
 export type WorkflowWithNodesAndEdges = {
@@ -104,9 +105,19 @@ export async function deleteWorkflowById(workflowId: string) {
     const { userId: clerkId } = await auth();
     if (!clerkId) throw new Error("Unauthorized");
 
+    const workflow = await prisma.workflow.findUnique({
+        where: { id: workflowId },
+        select: { org_id: true }
+    });
+
     await prisma.workflow.delete({
         where: { id: workflowId },
     });
+
+    if (workflow) {
+        await CacheService.invalidateDashboardWorkflows(workflow.org_id.toString());
+        await CacheService.invalidateDashboardStats(workflow.org_id.toString());
+    }
 
     return { success: true };
 }
@@ -124,8 +135,10 @@ export async function updateWorkflowMetadataDb(
             ...(updates.name && { name: updates.name }),
             ...(updates.description !== undefined && { description: updates.description }),
         },
-        select: { id: true, name: true },
+        select: { id: true, name: true, org_id: true },
     });
+
+    await CacheService.invalidateDashboardWorkflows(workflow.org_id.toString());
 
     return workflow;
 }
@@ -189,6 +202,9 @@ export async function createWorkflowWithInitialNode(input: {
             connections: true,
         },
     });
+
+    await CacheService.invalidateDashboardWorkflows(input.orgId);
+    await CacheService.invalidateDashboardStats(input.orgId);
 
     return {
         id: workflow.id,

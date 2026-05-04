@@ -118,4 +118,83 @@ export class CacheService {
       console.error("Clear all cache error:", error);
     }
   }
+
+  // -------------------------
+  // Dashboard Cache Helpers
+  // -------------------------
+
+  static async getDashboardStats(orgId: string): Promise<any | null> {
+    const key = getCacheKey(CACHE_CONFIG.KEYS.DASHBOARD_STATS, orgId);
+    return this.get<any>(key);
+  }
+  static async setDashboardStats(orgId: string, data: any): Promise<void> {
+    const key = getCacheKey(CACHE_CONFIG.KEYS.DASHBOARD_STATS, orgId);
+    await this.set(key, data, CACHE_CONFIG.TTL.DASHBOARD_STATS);
+  }
+  static async invalidateDashboardStats(orgId: string): Promise<void> {
+    const key = getCacheKey(CACHE_CONFIG.KEYS.DASHBOARD_STATS, orgId);
+    await this.del(key);
+  }
+
+  static async getRecentOrders(orgId: string): Promise<any[] | null> {
+    const key = getCacheKey(CACHE_CONFIG.KEYS.DASHBOARD_ORDERS, orgId);
+    return this.get<any[]>(key);
+  }
+  static async setRecentOrders(orgId: string, orders: any[]): Promise<void> {
+    const key = getCacheKey(CACHE_CONFIG.KEYS.DASHBOARD_ORDERS, orgId);
+    await this.set(key, orders, CACHE_CONFIG.TTL.DASHBOARD_ORDERS);
+  }
+  static async invalidateDashboardOrders(orgId: string): Promise<void> {
+    const key = getCacheKey(CACHE_CONFIG.KEYS.DASHBOARD_ORDERS, orgId);
+    await this.del(key);
+  }
+
+  static async getRecentWorkflows(orgId: string): Promise<any[] | null> {
+    const key = getCacheKey(CACHE_CONFIG.KEYS.DASHBOARD_WORKFLOWS, orgId);
+    return this.get<any[]>(key);
+  }
+  static async setRecentWorkflows(orgId: string, workflows: any[]): Promise<void> {
+    const key = getCacheKey(CACHE_CONFIG.KEYS.DASHBOARD_WORKFLOWS, orgId);
+    await this.set(key, workflows, CACHE_CONFIG.TTL.DASHBOARD_WORKFLOWS);
+  }
+  static async invalidateDashboardWorkflows(orgId: string): Promise<void> {
+    const key = getCacheKey(CACHE_CONFIG.KEYS.DASHBOARD_WORKFLOWS, orgId);
+    await this.del(key);
+  }
+
+  static async getLowStock(orgId: string): Promise<any[] | null> {
+    const key = getCacheKey(CACHE_CONFIG.KEYS.DASHBOARD_LOW_STOCK, orgId);
+    return this.get<any[]>(key);
+  }
+  static async setLowStock(orgId: string, products: any[]): Promise<void> {
+    const key = getCacheKey(CACHE_CONFIG.KEYS.DASHBOARD_LOW_STOCK, orgId);
+    await this.set(key, products, CACHE_CONFIG.TTL.DASHBOARD_LOW_STOCK);
+  }
+  static async invalidateDashboardLowStock(orgId: string): Promise<void> {
+    const key = getCacheKey(CACHE_CONFIG.KEYS.DASHBOARD_LOW_STOCK, orgId);
+    await this.del(key);
+  }
+
+  static async getChartData(orgId: string): Promise<any[] | null> {
+    const key = getCacheKey(CACHE_CONFIG.KEYS.DASHBOARD_CHART, orgId);
+    return this.get<any[]>(key);
+  }
+  static async setChartData(orgId: string, data: any[]): Promise<void> {
+    const key = getCacheKey(CACHE_CONFIG.KEYS.DASHBOARD_CHART, orgId);
+    await this.set(key, data, CACHE_CONFIG.TTL.DASHBOARD_CHART);
+  }
+  static async invalidateDashboardChart(orgId: string): Promise<void> {
+    const key = getCacheKey(CACHE_CONFIG.KEYS.DASHBOARD_CHART, orgId);
+    await this.del(key);
+  }
+
+  static async invalidateAllDashboard(orgId: string): Promise<void> {
+    await Promise.all([
+      this.invalidateDashboardStats(orgId),
+      this.invalidateDashboardOrders(orgId),
+      this.invalidateDashboardWorkflows(orgId),
+      this.invalidateDashboardLowStock(orgId),
+      this.invalidateDashboardChart(orgId)
+    ]);
+  }
 }

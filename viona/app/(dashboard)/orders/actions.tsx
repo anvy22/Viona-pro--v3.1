@@ -9,6 +9,7 @@ import { revalidatePath } from 'next/cache';
 import { sendNotification } from '@/lib/rabbitmq';
 import { emitOrderEvent } from '@/lib/workflow-events';
 import { getUsageStats, incrementUsage } from "@/app/(dashboard)/billing/billing-actions";
+import { CacheService } from '@/lib/cache';
 
 // Cache user lookup to avoid repeated queries
 async function getOrCreateUser(userId: string) {
@@ -284,6 +285,8 @@ export async function addOrder(orgId: string, newOrder: any) {
     revalidatePath('/orders');
     revalidatePath('/dashboard');
     revalidatePath(`/orders/${orgId}`);
+    
+    await CacheService.invalidateAllDashboard(orgId);
 
     return {
       success: true,
@@ -603,6 +606,8 @@ export async function updateOrder(orgId: string, id: string, updatedOrder: any) 
     revalidatePath('/dashboard');
     revalidatePath(`/orders/${orgId}`);
 
+    await CacheService.invalidateAllDashboard(orgId);
+
     return {
       success: true,
       orderId: result.orderId,
@@ -745,6 +750,8 @@ export async function deleteOrder(orgId: string, id: string) {
     revalidatePath('/dashboard');
     revalidatePath(`/orders/${orgId}`);
 
+    await CacheService.invalidateAllDashboard(orgId);
+
     return {
       success: true,
       orderId: orderId.toString(),
@@ -847,6 +854,8 @@ export async function bulkUpdateOrders(orgId: string, updates: { id: string; dat
     revalidatePath('/orders');
     revalidatePath('/dashboard');
     revalidatePath(`/orders/${orgId}`);
+
+    await CacheService.invalidateAllDashboard(orgId);
 
     return {
       success: true,
