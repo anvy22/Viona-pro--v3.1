@@ -113,6 +113,13 @@ function StoragePageContent() {
       const segments = newHistory
         .slice(1) // skip root
         .map((h) => encodeURIComponent(h.name));
+      // Safety guard: a segment literally named "trash" would make the
+      // URL-sync useEffect misidentify the page as Trash view, hiding the
+      // entire non-trash toolbar (Upload, New Folder, Trash, Paste).
+      // Rename such a segment so the URL never contains a bare "trash" token.
+      const safeSegments = segments.map((s) =>
+        s.toLowerCase() === "trash" ? `${s}_(folder)` : s
+      );
       // Cache path → folderId at every level so back-nav can recover IDs
       newHistory.slice(1).forEach((h, i) => {
         const partialPath = newHistory
@@ -121,7 +128,7 @@ function StoragePageContent() {
           .join("/");
         if (h.id) sessionStorage.setItem(`storage_id:${partialPath}`, h.id);
       });
-      router.push(`/storage${segments.length ? `/${segments.join("/")}` : ""}`);
+      router.push(`/storage${safeSegments.length ? `/${safeSegments.join("/")}` : ""}`);
     },
     [router],
   );
@@ -207,10 +214,13 @@ function StoragePageContent() {
   const handleFolderClick = (folder: FileItem) => {
     const newHistory = [...folderHistory, { id: folder.id, name: folder.name }];
     setCurrentFolderId(folder.id);
+    // Always force drive view when opening a subfolder — prevents the view
+    // from staying as "trash" which would hide the Upload/Trash/Paste toolbar.
+    setCurrentView("drive");
     setSearchQuery("");
     setFolderHistory(newHistory);
     setSelectedFile(null);
-    pushNavToUrl(currentView, newHistory);
+    pushNavToUrl("drive", newHistory);
   };
 
   const navigateToBreadcrumb = (index: number) => {
@@ -329,15 +339,22 @@ function StoragePageContent() {
     }
   };
 
-  // Removes the current folder's cache entry so the next loadFiles call
-  // fetches fresh data from the server. Call this before any mutation.
-  const invalidateCache = () => {
-    const key = `${currentView}:${currentFolderId ?? "root"}:${selectedOrgId ?? "none"}`;
+  // Removes a folder's cache entry so the next loadFiles call fetches fresh
+  // data from the server. Call this before any mutation.
+  // Accepts an optional folderId to invalidate a specific folder (e.g. the
+  // source folder during a cut-paste). Defaults to the current folder.
+  const invalidateCache = (folderId?: string | null) => {
+    const targetId = folderId !== undefined ? folderId : currentFolderId;
+    const key = `${currentView}:${targetId ?? "root"}:${selectedOrgId ?? "none"}`;
     folderCache.current.delete(key);
-    // Also clear any cached preview URLs for items in this folder so they
-    // are re-fetched after mutations (rename, delete, upload, etc.)
-    for (const item of items) {
-      _previewCache.delete(item.id);
+    // Only clear preview URLs when invalidating the CURRENT folder —
+    // we know which items are in it from React state.
+    // For other folders (e.g. source of a cut) we don't have a reliable
+    // item list here, so skip preview eviction for them.
+    if (folderId === undefined || folderId === currentFolderId) {
+      for (const item of items) {
+        _previewCache.delete(item.id);
+      }
     }
   };
 
@@ -758,7 +775,14 @@ function StoragePageContent() {
         handleCut(item);
         break;
       case "paste":
-        handlePaste();
+        // If the user right-clicked a FOLDER, paste INTO that folder.
+        // If they right-clicked a file or the background (item is null/undefined),
+        // paste into the currently open folder (default behaviour).
+        if (item && item.type === "folder") {
+          handlePaste(item.id);
+        } else {
+          handlePaste();
+        }
         break;
     }
     setContextMenu(null);
@@ -785,32 +809,58 @@ function StoragePageContent() {
     setClipboard({ item: target, operation: "cut" });
   };
 
-  const handlePaste = async () => {
+  // targetFolderId: pass a folder's id when pasting into a specific folder
+  // (e.g. right-click on a folder card). Omit to paste into the currently
+  // open folder (Toolbar paste button or background right-click).
+  const handlePaste = async (targetFolderId?: string | null) => {
     if (!clipboard) return;
-    invalidateCache();
-    try {
-      const token = await getToken();
-      if (!token) return;
 
-      if (clipboard.operation === "cut") {
-        // Move: update parentId to current folder
-        // await StorageApi.renameItem(
-        //   token,
-        //   clipboard.item.id,
-        //   clipboard.item.name,
-        // );
-        // Actually we need moveItem — see storageApi section below
-        await StorageApi.moveItem(token, clipboard.item.id, currentFolderId);
-        setClipboard(null); // Clear clipboard after cut-paste
+    const op = clipboard.operation;
+    const pastedItem = clipboard.item;
+    // Resolve destination: explicit target, or the currently open folder
+    const destinationId =
+      targetFolderId !== undefined ? targetFolderId : currentFolderId;
+
+    const pastePromise = async () => {
+      // Invalidate the DESTINATION folder cache so it shows the new item
+      invalidateCache(destinationId);
+
+      // For a cut (move), also invalidate the SOURCE folder so that folder
+      // no longer shows the moved file when the user navigates back to it.
+      if (op === "cut") {
+        const sourceParentId = pastedItem.parentId ?? null;
+        if (sourceParentId !== destinationId) {
+          invalidateCache(sourceParentId);
+        }
+      }
+
+      const token = await getToken();
+      if (!token) throw new Error("Authentication error");
+
+      if (op === "cut") {
+        await StorageApi.moveItem(token, pastedItem.id, destinationId);
+        setClipboard(null); // Clear clipboard after cut-paste (one-time move)
       } else {
-        // Copy: call copyItem API — see storageApi section below
-        await StorageApi.copyItem(token, clipboard.item.id, currentFolderId);
-        // Clipboard stays for multiple pastes
+        await StorageApi.copyItem(token, pastedItem.id, destinationId);
+        // Clipboard stays so the user can paste to multiple destinations
       }
       await loadFiles();
-    } catch (err) {
-      console.error("Paste failed", err);
-    }
+    };
+
+    toast.promise(pastePromise(), {
+      loading:
+        op === "cut"
+          ? `Moving "${pastedItem.name}"...`
+          : `Copying "${pastedItem.name}"...`,
+      success:
+        op === "cut"
+          ? `"${pastedItem.name}" moved successfully`
+          : `"${pastedItem.name}" copied successfully`,
+      error: (err) =>
+        `Paste failed: ${
+          err instanceof Error ? err.message : "Unknown error"
+        }`,
+    });
   };
 
   if (orgs.length === 0 || !selectedOrgId) {
@@ -893,7 +943,21 @@ function StoragePageContent() {
           <div
             className="flex-1 overflow-y-auto min-h-0 space-y-8 pb-10"
             onContextMenu={(e) => {
-              e.preventDefault();
+              // If the click landed directly on this background container
+              // (not on a card inside it) and we have something on the
+              // clipboard, open a paste-only context menu.
+              if (e.target === e.currentTarget && clipboard) {
+                e.preventDefault();
+                // Use a synthetic FileItem shell — handleContextMenuAction
+                // "paste" only reads clipboard, not contextMenu.item.
+                setContextMenu({
+                  x: e.clientX,
+                  y: e.clientY,
+                  item: null as unknown as FileItem,
+                });
+              } else {
+                e.preventDefault();
+              }
             }}
           >
             {currentFolders.length > 0 && (
