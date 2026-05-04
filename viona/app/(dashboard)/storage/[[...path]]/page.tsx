@@ -769,50 +769,6 @@ function StoragePageContent() {
               {currentItems.length} items
             </span>
           </div>
-          <br />
-          <nav className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-            <button
-              onClick={handleBack}
-              disabled={
-                folderHistory.length <= 1 &&
-                currentView !== "trash" &&
-                !searchQuery
-              }
-              className={cn(
-                "p-1 rounded-full transition-colors",
-                // Background colors fixed for light/dark
-                "hover:bg-gray-200 dark:hover:bg-white/5",
-                folderHistory.length <= 1 &&
-                  currentView !== "trash" &&
-                  !searchQuery
-                  ? "opacity-30 cursor-not-allowed"
-                  : // Text colors fixed for light/dark
-                    "text-gray-600 dark:text-gray-200",
-              )}
-              title="Go Back"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <div className="w-px h-4 bg-gray-300 dark:bg-sidebar-border" />
-
-            {folderHistory.map((item, index) => (
-              <button
-                key={index}
-                onClick={() => navigateToBreadcrumb(index)}
-                className={cn(
-                  "transition-colors px-1",
-                  // Hover text color fixed
-                  "hover:text-gray-900 dark:hover:text-white",
-                  index === folderHistory.length - 1
-                    ? // Active text color fixed
-                      "text-gray-900 dark:text-white font-medium"
-                    : "",
-                )}
-              >
-                {item.name} {index < folderHistory.length - 1 && " / "}
-              </button>
-            ))}
-          </nav>
         </div>
 
         <Toolbar
