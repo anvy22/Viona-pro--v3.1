@@ -26,6 +26,7 @@ import { InventoryTriggerNode } from "@/app/(dashboard)/workflows/components/tri
 import { OrderTriggerNode } from "@/app/(dashboard)/workflows/components/triggers/order-trigger/node";
 import { ScheduledTriggerNode } from "@/app/(dashboard)/workflows/components/triggers/scheduled-trigger/node";
 import { ConditionalNode } from "@/app/(dashboard)/workflows/components/executions/conditional/node";
+import { GoogleSheetsNode } from "@/app/(dashboard)/workflows/components/executions/google-sheets/node";
 
 export const nodeComponents = {
     [NodeType.CONDITIONAL]: ConditionalNode,
@@ -54,6 +55,7 @@ export const nodeComponents = {
     [NodeType.INVENTORY_TRIGGER]: InventoryTriggerNode,
     [NodeType.ORDER_TRIGGER]: OrderTriggerNode,
     [NodeType.SCHEDULED_TRIGGER]: ScheduledTriggerNode,
+    [NodeType.GOOGLE_SHEETS]: GoogleSheetsNode,
 } as const satisfies NodeTypes;
 
 export type RegisteredNodeTypes = keyof typeof nodeComponents;

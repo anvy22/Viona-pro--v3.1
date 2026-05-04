@@ -38,6 +38,11 @@ export const CACHE_CONFIG = {
     PRODUCTS: 60 * 15,
     ORGANIZATIONS: 60 * 30,
     USER_DATA: 60 * 10,
+    DASHBOARD_STATS: 60 * 10,    
+    DASHBOARD_ORDERS: 60 * 10,     
+    DASHBOARD_WORKFLOWS: 60 * 10, 
+    DASHBOARD_LOW_STOCK: 60 * 10, 
+    DASHBOARD_CHART: 60 * 10,      
   },
 
   KEYS: {
@@ -46,6 +51,11 @@ export const CACHE_CONFIG = {
     USER_ORGS: "user-organizations",
     ORG_MEMBERS: "org-members",
     LAST_MODIFIED: "last-modified",
+    DASHBOARD_STATS: "dashboard:stats",
+    DASHBOARD_ORDERS: "dashboard:orders",
+    DASHBOARD_WORKFLOWS: "dashboard:workflows",
+    DASHBOARD_LOW_STOCK: "dashboard:low-stock",
+    DASHBOARD_CHART: "dashboard:chart",
   },
 
   VERSION: "v1",

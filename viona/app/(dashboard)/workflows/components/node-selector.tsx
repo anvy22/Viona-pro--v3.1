@@ -15,6 +15,7 @@ import {
     ShoppingCart,
     Clock,
     SplitSquareHorizontal,
+    Table,
 } from "lucide-react"
 import { useCallback } from "react";
 import { toast } from "sonner";
@@ -100,6 +101,12 @@ const executionNodes: NodeTypeOption[] = [
         label: "OpenAI",
         description: "Use OpenAI to generate content",
         icon: "/logos/openai.svg",
+    },
+    {
+        type: NodeType.GOOGLE_SHEETS,
+        label: "Google Sheets",
+        description: "Read or append rows using Google Sheets",
+        icon: "/logos/googlesheets.svg",
     },
     {
         type: NodeType.ANTHROPIC,

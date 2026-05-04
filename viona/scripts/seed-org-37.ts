@@ -13,45 +13,44 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const ORG_ID = BigInt(8);
-const USER_ID = BigInt(4);
+const ORG_ID = BigInt(1);
+const USER_ID = BigInt(1);
 
-// Product data
 const PRODUCTS = [
-    // Laptops
-    { name: 'MacBook Pro 14"', sku: 'MBP-14-M3', price: 1999, description: 'Apple M3, 16GB RAM, 512GB SSD' },
-    { name: 'MacBook Air 15"', sku: 'MBA-15-M2', price: 1499, description: 'Apple M2, 16GB RAM' },
-    { name: 'Dell XPS 13 Plus', sku: 'DELL-XPS13P', price: 1699, description: 'Intel i7 Evo, OLED Display' },
-    { name: 'Lenovo ThinkPad X1 Carbon', sku: 'LEN-X1C', price: 1899, description: 'Business Laptop, Ultra-light' },
+  // Laptops
+  { name: 'Acer Predator Helios 16', sku: 'ACR-PH16', price: 1999, description: 'i9, RTX 4070, 16GB RAM' },
+  { name: 'HP Spectre x360', sku: 'HP-SPX360', price: 1499, description: 'Touchscreen, Convertible Laptop' },
+  { name: 'Asus ROG Zephyrus G14', sku: 'ASUS-G14', price: 1699, description: 'Ryzen 9, Gaming Laptop' },
+  { name: 'MSI Stealth 15M', sku: 'MSI-S15M', price: 1899, description: 'Ultra thin gaming laptop' },
 
-    // Phones
-    { name: 'iPhone 15 Pro', sku: 'IPH-15P', price: 999, description: '128GB, Titanium Blue' },
-    { name: 'Samsung Galaxy S24 Ultra', sku: 'SG-S24U', price: 1299, description: '512GB, Titanium Black' },
-    { name: 'Google Pixel 8', sku: 'PIX-8', price: 799, description: 'AI Camera, Clean Android' },
+  // Phones
+  { name: 'OnePlus 12', sku: 'OP-12', price: 899, description: 'Snapdragon Gen 3' },
+  { name: 'Nothing Phone 2', sku: 'NP-2', price: 699, description: 'Glyph Interface' },
+  { name: 'Xiaomi 14 Pro', sku: 'XM-14P', price: 999, description: 'Leica Camera' },
 
-    // Tablets
-    { name: 'iPad Air M2', sku: 'IPD-AIR-M2', price: 699, description: '256GB, Wi-Fi' },
-    { name: 'Samsung Galaxy Tab S9', sku: 'SG-TABS9', price: 849, description: 'AMOLED Display' },
+  // Tablets
+  { name: 'Lenovo Tab P12', sku: 'LEN-P12', price: 599, description: 'Stylus support' },
+  { name: 'Realme Pad X', sku: 'RM-PADX', price: 349, description: 'Affordable tablet' },
 
-    // Audio
-    { name: 'Sony WH-1000XM5', sku: 'SONY-XM5', price: 349, description: 'Noise Cancelling Headphones' },
-    { name: 'Bose QuietComfort Ultra', sku: 'BOSE-QC-U', price: 379, description: 'Spatial Audio ANC' },
-    { name: 'AirPods Pro 2', sku: 'APP-2', price: 249, description: 'USB-C, ANC' },
+  // Audio
+  { name: 'JBL Live 660NC', sku: 'JBL-660', price: 199, description: 'Wireless ANC headphones' },
+  { name: 'Sennheiser Momentum 4', sku: 'SEN-M4', price: 379, description: 'Premium sound quality' },
+  { name: 'Boat Airdopes 441', sku: 'BOAT-441', price: 49, description: 'Budget earbuds' },
 
-    // Gaming
-    { name: 'PlayStation 5', sku: 'PS5-DISC', price: 499, description: 'Disc Edition' },
-    { name: 'Xbox Series X', sku: 'XBX-X', price: 499, description: '1TB SSD' },
-    { name: 'Nintendo Switch OLED', sku: 'NIN-OLED', price: 349, description: 'OLED Display' },
+  // Gaming
+  { name: 'Steam Deck', sku: 'STM-DCK', price: 499, description: 'Portable gaming PC' },
+  { name: 'Asus ROG Ally', sku: 'ROG-ALLY', price: 699, description: 'Handheld console' },
+  { name: 'Logitech G Cloud', sku: 'LOG-GC', price: 349, description: 'Cloud gaming handheld' },
 
-    // Accessories & Storage
-    { name: 'Logitech MX Master 3S', sku: 'LOG-MX3S', price: 99, description: 'Wireless Mouse' },
-    { name: 'Keychron Q1 Pro', sku: 'KEY-Q1P', price: 219, description: 'Mechanical Keyboard' },
-    { name: 'Samsung T7 Shield 2TB', sku: 'SAM-T7-2TB', price: 179, description: 'Portable SSD' },
-    { name: 'WD Black SN850X 2TB', sku: 'WD-SN850X', price: 189, description: 'NVMe Gen4 SSD' },
+  // Accessories
+  { name: 'Razer Basilisk V3', sku: 'RAZ-BV3', price: 89, description: 'Gaming mouse' },
+  { name: 'HyperX Alloy Origins', sku: 'HX-AO', price: 129, description: 'Mechanical keyboard' },
+  { name: 'Sandisk Extreme 2TB', sku: 'SD-EXT-2TB', price: 179, description: 'Portable SSD' },
+  { name: 'Crucial P5 Plus 2TB', sku: 'CR-P5P', price: 189, description: 'NVMe SSD' },
 
-    // Networking & Power
-    { name: 'TP-Link WiFi 6 Mesh', sku: 'TPL-MESH6', price: 399, description: 'Whole Home WiFi' },
-    { name: 'Anker PowerCore 737', sku: 'ANK-737', price: 149, description: '140W Power Bank' },
+  // Networking
+  { name: 'Netgear Nighthawk AX5400', sku: 'NG-AX5400', price: 399, description: 'WiFi 6 router' },
+  { name: 'Mi Power Bank 3 Pro', sku: 'MI-PB3P', price: 49, description: 'Fast charging power bank' },
 ];
 
 // Warehouse data
@@ -61,23 +60,17 @@ const WAREHOUSES = [
     { name: "Midwest Distribution", address: "789 Industrial Blvd, Chicago, IL 60601" },
 ];
 
-// Customer data for orders
 const CUSTOMERS = [
-    { name: 'Alex Morgan', email: 'alex.morgan@gmail.com', phone: '+1-555-1001' },
-    { name: 'Priya Nair', email: 'priya.nair@gmail.com', phone: '+1-555-1002' },
-    { name: 'Daniel Kim', email: 'dan.kim@gmail.com', phone: '+1-555-1003' },
-    { name: 'Sophia Martinez', email: 'sophia.m@gmail.com', phone: '+1-555-1004' },
-    { name: 'Chris Johnson', email: 'cjohnson@gmail.com', phone: '+1-555-1005' },
-    { name: 'Aisha Khan', email: 'aisha.khan@gmail.com', phone: '+1-555-1006' },
-    { name: 'Matthew Green', email: 'mgreen@gmail.com', phone: '+1-555-1007' },
-    { name: 'Emily Chen', email: 'emily.chen@gmail.com', phone: '+1-555-1008' },
-    { name: 'Rohit Sharma', email: 'rohit.sharma@gmail.com', phone: '+1-555-1009' },
-    { name: 'Olivia Brown', email: 'olivia.b@gmail.com', phone: '+1-555-1010' },
-    { name: 'James Wilson', email: 'jwilson@gmail.com', phone: '+1-555-1011' },
-    { name: 'Neha Patel', email: 'neha.p@gmail.com', phone: '+1-555-1012' },
-    { name: 'Ethan Walker', email: 'ethan.w@gmail.com', phone: '+1-555-1013' },
-    { name: 'Isabella Rossi', email: 'isabella.r@gmail.com', phone: '+1-555-1014' },
-    { name: 'Mohammed Ali', email: 'mali@gmail.com', phone: '+1-555-1015' },
+  { name: 'Arjun Menon', email: 'arjun.menon@gmail.com', phone: '+91-9000000001' },
+  { name: 'Meera Nair', email: 'meera.nair@gmail.com', phone: '+91-9000000002' },
+  { name: 'Rahul Das', email: 'rahul.das@gmail.com', phone: '+91-9000000003' },
+  { name: 'Sneha Iyer', email: 'sneha.iyer@gmail.com', phone: '+91-9000000004' },
+  { name: 'Kiran Kumar', email: 'kiran@gmail.com', phone: '+91-9000000005' },
+  { name: 'Fatima Ali', email: 'fatima@gmail.com', phone: '+91-9000000006' },
+  { name: 'Vikram Singh', email: 'vikram@gmail.com', phone: '+91-9000000007' },
+  { name: 'Ananya Reddy', email: 'ananya@gmail.com', phone: '+91-9000000008' },
+  { name: 'Rohit Verma', email: 'rohit@gmail.com', phone: '+91-9000000009' },
+  { name: 'Neha Kapoor', email: 'neha@gmail.com', phone: '+91-9000000010' },
 ];
 
 const ORDER_STATUSES = ["pending", "processing", "shipped", "delivered", "cancelled"];

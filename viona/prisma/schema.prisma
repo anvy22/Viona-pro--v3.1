@@ -206,6 +206,7 @@ enum CredentialType {
   ANTHROPIC
   GEMINI
   GROQ
+  GOOGLE_SHEETS
 }
 
 /* ------------------ Workflows ------------------ */
@@ -258,6 +259,7 @@ enum NodeType {
   ORDER_TRIGGER
   SCHEDULED_TRIGGER
   CONDITIONAL
+  GOOGLE_SHEETS
 }
 
 model Node{
