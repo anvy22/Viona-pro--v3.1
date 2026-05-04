@@ -13,7 +13,31 @@ import { MobileSidebar } from './DesktopSidebar'
 
 export const BreadcrumbHeader = () => {
     const pathname = usePathname();
-    const paths = pathname === '/' ? [''] : pathname.split('/');
+
+    // Build cumulative breadcrumb entries so each link points to the full
+    // path up to and including that segment, not just the bare segment.
+    //
+    // Example — pathname = "/storage/organization/starck/productimage"
+    //
+    //   index  segment          href (cumulative)
+    //   0      ""  → Dashboard  /
+    //   1      storage          /storage
+    //   2      organization     /storage/organization   ← correct!
+    //   3      starck           /storage/organization/starck
+    //   4      productimage     /storage/organization/starck/productimage
+    //
+    const segments = pathname === '/' ? [''] : pathname.split('/');
+
+    const breadcrumbs = segments.map((segment, index) => {
+        // Cumulative href = join all segments up to this index
+        const href = index === 0
+            ? '/'
+            : '/' + segments.slice(1, index + 1).join('/');
+
+        const label = segment === '' ? 'Dashboard' : segment;
+
+        return { href, label };
+    });
 
     return (
         <div className='flex items-center justify-between w-full p-3 bg-background md:justify-start'>
@@ -21,14 +45,14 @@ export const BreadcrumbHeader = () => {
                 <MobileSidebar />
                 <Breadcrumb>
                     <BreadcrumbList>
-                        {paths.map((path, index) => (
+                        {breadcrumbs.map((crumb, index) => (
                             <React.Fragment key={index}>
                                 <BreadcrumbItem>
-                                    <BreadcrumbLink className='capitalize' href={`/${path}`}>
-                                        {path === "" ? "Dashboard" : path}
+                                    <BreadcrumbLink className='capitalize' href={crumb.href}>
+                                        {crumb.label}
                                     </BreadcrumbLink>
                                 </BreadcrumbItem>
-                                {index < paths.length - 1 && <BreadcrumbSeparator />}
+                                {index < breadcrumbs.length - 1 && <BreadcrumbSeparator />}
                             </React.Fragment>
                         ))}
                     </BreadcrumbList>
