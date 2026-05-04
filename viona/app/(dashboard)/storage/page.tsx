@@ -746,7 +746,7 @@ export default function Home() {
             )}
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto min-h-0 pb-10 bg-card rounded-xl border border-border">
+          <div className="flex-1 overflow-y-auto min-h-0 pb-10 bg-card rounded-xl border border-border mt-4">
             <FileList
               items={currentItems}
               selectedId={selectedFile?.id}
