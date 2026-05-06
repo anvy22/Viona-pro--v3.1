@@ -1,29 +1,61 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
-import Toolbar from "./components/Toolbar";
-import FolderCard from "./components/FolderCard";
-import FileCard from "./components/FileCard";
-import FileList from "./components/FileList";
-import DetailsDialog from "./components/DetailsDialog";
-import NewFolderDialog from "./components/NewFolderDialog";
-import RenameDialog from "./components/RenameDialog";
-import DeleteDialog from "./components/DeleteDialog";
-import ContextMenu from "./components/ContextMenu";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { useRouter, useParams } from "next/navigation";
+import Toolbar from "../components/Toolbar";
+import FolderCard from "../components/FolderCard";
+import FileCard from "../components/FileCard";
+import FileList from "../components/FileList";
+import DetailsDialog from "../components/DetailsDialog";
+import NewFolderDialog from "../components/NewFolderDialog";
+import RenameDialog from "../components/RenameDialog";
+import DeleteDialog from "../components/DeleteDialog";
+import ContextMenu from "../components/ContextMenu";
+import { StorageSkeleton } from "../components/StorageSkeleton";
 
 import { useAuth } from "@clerk/nextjs";
 import * as StorageApi from "@/lib/storageApi";
-import { FileItem } from "./types";
+import { FileItem } from "../types";
 import { cn } from "@/lib/utils";
 import { ArrowLeft } from "lucide-react";
 import { useOrgStore } from "@/hooks/useOrgStore";
 import { OrganizationState } from "@/components/OrganizationState";
 import { toast } from "sonner";
 
-export default function Home() {
+// ── Module-level singletons — survive component remounts ──────────────────
+// These live outside the React component so they are NOT destroyed when the
+// user navigates away and comes back. The cache is keyed by
+// `${view}:${folderId ?? "root"}:${orgId ?? "none"}`.
+const _folderCache = new Map<string, { data: FileItem[]; ts: number }>();
+const _previewCache = new Map<string, string>(); // fileId → signed URL
+const _orgEnsured = new Set<string>();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes before a silent background refresh
+
+function StoragePageContent() {
   const { selectedOrgId, orgs, setSelectedOrgId } = useOrgStore();
+  const router = useRouter();
+  const params = useParams();
+  // Normalise the catch-all path segments
+  const _rawPath = Array.isArray(params.path)
+    ? (params.path as string[])
+    : params.path
+      ? [params.path as string]
+      : [];
   const orgIds = orgs.map((o) => String(o.id));
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [currentView, setCurrentView] = useState<"drive" | "trash">("drive");
+  const [viewMode, setViewMode] = useState<"grid" | "list">(() => {
+    // Read persisted preference from localStorage on first render.
+    // Falls back to "grid" if nothing is stored yet.
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("storage_view_mode");
+      if (saved === "list" || saved === "grid") return saved;
+    }
+    return "grid";
+  });
+
+  // Persist the user's view preference so it survives navigation and refresh.
+  useEffect(() => {
+    localStorage.setItem("storage_view_mode", viewMode);
+  }, [viewMode]);
+
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
 
   const { getToken } = useAuth();
@@ -32,8 +64,30 @@ export default function Home() {
   const [usagePercent, setUsagePercent] = useState(0);
   const [usedBytes, setUsedBytes] = useState(0);
 
-  // Navigation State
-  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  // ── Navigation State — bootstrapped from URL path ───────────────────────────
+  // URL shape (folder names, not IDs):
+  //   /storage                     ← My Drive root
+  //   /storage/Invoices            ← inside "Invoices"
+  //   /storage/Invoices/Q1         ← nested
+  //   /storage/trash               ← Trash view
+  // Folder IDs are cached in sessionStorage keyed by name-path so that
+  // browser back / forward can restore the correct API folder without
+  // storing UUIDs in the visible URL.
+  const _isTrash = _rawPath[0] === "trash";
+  const _initView: "drive" | "trash" = _isTrash ? "trash" : "drive";
+  const _initPathStr = _rawPath
+    .filter((s) => s !== "trash")
+    .map(decodeURIComponent)
+    .join("/");
+  const _initFolderId =
+    typeof window !== "undefined" && _initPathStr
+      ? (sessionStorage.getItem(`storage_id:${_initPathStr}`) ?? null)
+      : null;
+
+  const [currentView, setCurrentView] = useState<"drive" | "trash">(_initView);
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(
+    _initFolderId,
+  );
   const [folderHistory, setFolderHistory] = useState<
     { id: string | null; name: string }[]
   >([{ id: null, name: "My Drive" }]);
@@ -41,13 +95,72 @@ export default function Home() {
   // Data State
   const [items, setItems] = useState<FileItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // ── URL sync helper ───────────────────────────────────────────────────────
+  // Pushes a clean, human-readable path entry on every in-page navigation.
+  // Also caches the path→folderId mapping in sessionStorage so the ID can
+  // be recovered when the browser navigates back to this URL.
+  const pushNavToUrl = useCallback(
+    (
+      newView: "drive" | "trash",
+      newHistory: { id: string | null; name: string }[],
+    ) => {
+      if (newView === "trash") {
+        router.push("/storage/trash");
+        return;
+      }
+      // Build path from folder names (root "My Drive" = /storage)
+      const segments = newHistory
+        .slice(1) // skip root
+        .map((h) => encodeURIComponent(h.name));
+      // Safety guard: a segment literally named "trash" would make the
+      // URL-sync useEffect misidentify the page as Trash view, hiding the
+      // entire non-trash toolbar (Upload, New Folder, Trash, Paste).
+      // Rename such a segment so the URL never contains a bare "trash" token.
+      const safeSegments = segments.map((s) =>
+        s.toLowerCase() === "trash" ? `${s}_(folder)` : s,
+      );
+      // Cache path → folderId at every level so back-nav can recover IDs
+      newHistory.slice(1).forEach((h, i) => {
+        const partialPath = newHistory
+          .slice(1, i + 2)
+          .map((x) => x.name)
+          .join("/");
+        if (h.id) sessionStorage.setItem(`storage_id:${partialPath}`, h.id);
+      });
+      router.push(
+        `/storage${safeSegments.length ? `/${safeSegments.join("/")}` : ""}`,
+      );
+    },
+    [router],
+  );
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
 
-  // Clipboard state for copy/cut/paste
+  // Clipboard state for copy/cut/paste.
+  // Initialised from sessionStorage so it survives folder navigation
+  // (router.push remounts the component, resetting plain useState to null).
   const [clipboard, setClipboard] = useState<{
     item: FileItem;
     operation: "copy" | "cut";
-  } | null>(null);
+  } | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const saved = sessionStorage.getItem("storage_clipboard");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  // Keep sessionStorage in sync with clipboard so the Paste button survives
+  // folder navigation (component remounts reset useState to its initializer).
+  useEffect(() => {
+    if (clipboard) {
+      sessionStorage.setItem("storage_clipboard", JSON.stringify(clipboard));
+    } else {
+      sessionStorage.removeItem("storage_clipboard");
+    }
+  }, [clipboard]);
 
   // Modal State
   const [modals, setModals] = useState({
@@ -75,6 +188,12 @@ export default function Home() {
     item: FileItem;
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Point component refs at module-level singletons ─────────────────────
+  // folderCache and orgEnsuredRef now reference the module-level singletons
+  // above, so the cache persists across remounts and page navigations.
+  const folderCache = useRef(_folderCache);
+  const orgEnsuredRef = useRef(_orgEnsured);
 
   const currentItems =
     currentView === "trash"
@@ -115,10 +234,15 @@ export default function Home() {
   };
 
   const handleFolderClick = (folder: FileItem) => {
+    const newHistory = [...folderHistory, { id: folder.id, name: folder.name }];
     setCurrentFolderId(folder.id);
+    // Always force drive view when opening a subfolder — prevents the view
+    // from staying as "trash" which would hide the Upload/Trash/Paste toolbar.
+    setCurrentView("drive");
     setSearchQuery("");
-    setFolderHistory((prev) => [...prev, { id: folder.id, name: folder.name }]);
+    setFolderHistory(newHistory);
     setSelectedFile(null);
+    pushNavToUrl("drive", newHistory);
   };
 
   const navigateToBreadcrumb = (index: number) => {
@@ -127,18 +251,22 @@ export default function Home() {
     setFolderHistory(newHistory);
     setCurrentFolderId(newHistory[newHistory.length - 1].id);
     setSelectedFile(null);
+    pushNavToUrl(currentView, newHistory);
   };
 
   const handleBack = () => {
     if (searchQuery) {
       setSearchQuery("");
+      pushNavToUrl(currentView, folderHistory);
       return;
     }
 
     if (currentView === "trash") {
+      const driveHistory = [{ id: null, name: "My Drive" }];
       setCurrentView("drive");
-      setFolderHistory([{ id: null, name: "My Drive" }]);
+      setFolderHistory(driveHistory);
       setCurrentFolderId(null);
+      pushNavToUrl("drive", driveHistory);
       return;
     }
     if (folderHistory.length <= 1) return;
@@ -146,58 +274,120 @@ export default function Home() {
     setFolderHistory(newHistory);
     setCurrentFolderId(newHistory[newHistory.length - 1].id);
     setSelectedFile(null);
+    pushNavToUrl(currentView, newHistory);
   };
 
   // --- Actions ---
 
-  const loadFiles = async (showToast: boolean = true) => {
-    let loadingToastId;
-    if (showToast && !loading) {
-      loadingToastId = toast.loading("Loading...");
+  const loadFiles = async (showToast: boolean = false) => {
+    const key = `${currentView}:${currentFolderId ?? "root"}:${selectedOrgId ?? "none"}`;
+    const cached = folderCache.current.get(key);
+    const isStale = cached ? Date.now() - cached.ts > CACHE_TTL_MS : false;
+
+    if (cached) {
+      // ── Cache HIT: render instantly from cache ──────────────────────
+      setItems(cached.data);
+      // Always restore preview URLs from _previewCache into React state.
+      // Without this line, previewUrls stays {} on every remount / revisit
+      // because the fresh-cache path exits before calling loadPreviewUrls.
+      // loadPreviewUrls makes ZERO API calls here — it just reads the
+      // module-level map and calls setPreviewUrls.
+      loadPreviewUrls(cached.data);
+
+      // Only revalidate in background if stale or explicitly forced
+      if (isStale || showToast) {
+        try {
+          const token = await getToken();
+          if (!token) return;
+          const orgIds = orgs.map((o) => String(o.id));
+          const freshData = await StorageApi.listFiles(
+            token,
+            currentView === "trash" ? null : currentFolderId,
+            currentView === "trash",
+            orgIds,
+          );
+          folderCache.current.set(key, { data: freshData, ts: Date.now() });
+          setItems(freshData);
+          loadPreviewUrls(freshData);
+          prefetchChildFolders(freshData);
+        } catch (err) {
+          console.error("Background revalidation failed", err);
+          // Silently ignore — user already sees the cached version
+        }
+      }
+      return;
     }
 
+    // ── Cache MISS: show skeleton, fetch, store ──────────────────────────
     try {
       setLoading(true);
       const token = await getToken();
       if (!token) return;
 
-      // Ensure org folder hierarchy exists
-      if (selectedOrgId) {
+      // Ensure org folder hierarchy — only once per org per session
+      if (selectedOrgId && !orgEnsuredRef.current.has(selectedOrgId)) {
         const org = orgs.find((o) => String(o.id) === String(selectedOrgId));
         if (org) {
           await StorageApi.ensureOrgFolder(token, String(org.id), org.name);
+          orgEnsuredRef.current.add(selectedOrgId); // never run again for this org
         }
       }
 
       // Pass all user's org IDs so the server includes org files
       const orgIds = orgs.map((o) => String(o.id));
 
-      const data = await StorageApi.listFiles(
-        token,
-        currentView === "trash" ? null : currentFolderId,
-        currentView === "trash",
-        orgIds,
-      );
+      // Run listFiles and getUsage in parallel — saves one full round trip
+      const [data, usageData] = await Promise.all([
+        StorageApi.listFiles(
+          token,
+          currentView === "trash" ? null : currentFolderId,
+          currentView === "trash",
+          orgIds,
+        ),
+        StorageApi.getUsage(token),
+      ]);
+
+      folderCache.current.set(key, { data, ts: Date.now() }); // store in cache with timestamp
       setItems(data);
       loadPreviewUrls(data);
-      const usageData = await StorageApi.getUsage(token);
+      prefetchChildFolders(data); // warm cache for subfolders in background
       setUsagePercent(usageData.percentage);
       setUsedBytes(usageData.usedBytes);
-
-      if (loadingToastId) toast.dismiss(loadingToastId);
     } catch (err) {
       console.error("Failed to load files", err);
-      if (loadingToastId) toast.dismiss(loadingToastId);
       toast.error("Failed to load files");
     } finally {
       setLoading(false);
-      if (loadingToastId) toast.dismiss(loadingToastId);
+    }
+  };
+
+  // Removes a folder's cache entry so the next loadFiles call fetches fresh
+  // data from the server. Call this before any mutation.
+  // Accepts an optional folderId to invalidate a specific folder (e.g. the
+  // source folder during a cut-paste). Defaults to the current folder.
+  const invalidateCache = (folderId?: string | null) => {
+    const targetId = folderId !== undefined ? folderId : currentFolderId;
+    const key = `${currentView}:${targetId ?? "root"}:${selectedOrgId ?? "none"}`;
+    folderCache.current.delete(key);
+    // Only clear preview URLs when invalidating the CURRENT folder —
+    // we know which items are in it from React state.
+    // For other folders (e.g. source of a cut) we don't have a reliable
+    // item list here, so skip preview eviction for them.
+    if (folderId === undefined || folderId === currentFolderId) {
+      for (const item of items) {
+        _previewCache.delete(item.id);
+      }
     }
   };
 
   const loadPreviewUrls = async (files: FileItem[]) => {
     const token = await getToken();
     if (!token) return;
+    // Capture orgIds fresh at call time — avoids stale closure bug where
+    // orgIds captured at function-definition time could be [] if orgs
+    // hadn't loaded yet, causing the server to reject the signed URL request.
+    const currentOrgIds = orgs.map((o) => String(o.id));
+
     const previewable = files.filter(
       (f) =>
         f.type !== "folder" &&
@@ -208,24 +398,115 @@ export default function Home() {
           f.type === "video" ||
           f.type.startsWith("video/")),
     );
-    const entries = await Promise.allSettled(
-      previewable.map(async (f) => {
-        const url = await StorageApi.getViewUrl(token, f.id, orgIds);
-        return [f.id, url] as [string, string];
+
+    // Only fetch URLs for files that aren't already in the module-level preview cache
+    const needsFetch = previewable.filter((f) => !_previewCache.has(f.id));
+
+    await Promise.allSettled(
+      needsFetch.map(async (f) => {
+        try {
+          const url = await StorageApi.getViewUrl(token, f.id, currentOrgIds);
+          _previewCache.set(f.id, url); // store in module-level cache
+        } catch {
+          // silent — a failed URL won't block other previews from showing
+        }
       }),
     );
+
+    // Build the display map entirely from _previewCache
+    // (includes both pre-existing hits and URLs just fetched above)
     const map: Record<string, string> = {};
-    for (const result of entries) {
-      if (result.status === "fulfilled") {
-        map[result.value[0]] = result.value[1];
-      }
+    for (const f of previewable) {
+      const hit = _previewCache.get(f.id);
+      if (hit) map[f.id] = hit;
     }
     setPreviewUrls(map);
   };
 
+  // ── Background pre-fetch of direct child folders ───────────────────────
+  // Called after a folder loads. Silently warms the cache for every
+  // subfolder so the next click into them is instant (no skeleton).
+  const prefetchChildFolders = useCallback(
+    async (parentItems: FileItem[]) => {
+      const token = await getToken();
+      if (!token) return;
+      const subfolders = parentItems.filter((f) => f.type === "folder");
+      const orgIds = orgs.map((o) => String(o.id));
+
+      await Promise.allSettled(
+        subfolders.map(async (folder) => {
+          const key = `drive:${folder.id}:${selectedOrgId ?? "none"}`;
+          // Skip if already cached and still fresh
+          const existing = folderCache.current.get(key);
+          if (existing && Date.now() - existing.ts < CACHE_TTL_MS) return;
+
+          try {
+            const data = await StorageApi.listFiles(
+              token,
+              folder.id,
+              false,
+              orgIds,
+            );
+            folderCache.current.set(key, { data, ts: Date.now() });
+          } catch {
+            // silent — best-effort only, never blocks the UI
+          }
+        }),
+      );
+    },
+    [getToken, orgs, selectedOrgId],
+  );
+
   useEffect(() => {
     loadFiles();
   }, [currentFolderId, currentView, selectedOrgId]); // Re-fetch when folder, view, or org changes
+
+  // ── Sync state when the browser navigates back / forward ─────────────────
+  // When the browser Back/Forward button fires, Next.js updates `params.path`.
+  // We rebuild state from the path segments + sessionStorage ID cache.
+  useEffect(() => {
+    const rawPath = Array.isArray(params.path)
+      ? (params.path as string[])
+      : params.path
+        ? [params.path as string]
+        : [];
+
+    if (rawPath[0] === "trash") {
+      setCurrentView("trash");
+      setFolderHistory([{ id: "trash", name: "Trash" }]);
+      setCurrentFolderId(null);
+      setSelectedFile(null);
+      setSearchQuery("");
+      return;
+    }
+
+    setCurrentView("drive");
+    setSelectedFile(null);
+    setSearchQuery("");
+
+    if (rawPath.length === 0) {
+      setCurrentFolderId(null);
+      setFolderHistory([{ id: null, name: "My Drive" }]);
+      return;
+    }
+
+    // Rebuild breadcrumb history from path names + cached IDs
+    const newHistory: { id: string | null; name: string }[] = [
+      { id: null, name: "My Drive" },
+    ];
+    for (let i = 0; i < rawPath.length; i++) {
+      const name = decodeURIComponent(rawPath[i]);
+      const partialPath = rawPath
+        .slice(0, i + 1)
+        .map(decodeURIComponent)
+        .join("/");
+      const id = sessionStorage.getItem(`storage_id:${partialPath}`) ?? null;
+      newHistory.push({ id, name });
+    }
+    const lastId = newHistory[newHistory.length - 1]?.id ?? null;
+    setFolderHistory(newHistory);
+    setCurrentFolderId(lastId);
+  }, [params.path]); // Re-runs whenever the URL path changes
 
   // When searchQuery changes, fire a server-side search so we get results
   // from ALL nested folders, not just the currently loaded folder level.
@@ -256,6 +537,7 @@ export default function Home() {
   }, [searchQuery]);
 
   const handleCreateFolder = async (name: string) => {
+    invalidateCache();
     try {
       const token = await getToken();
       if (!token) return;
@@ -268,6 +550,7 @@ export default function Home() {
 
   const handleRename = async (newName: string) => {
     if (!selectedFile) return;
+    invalidateCache();
     try {
       const token = await getToken();
       if (!token) return;
@@ -283,6 +566,11 @@ export default function Home() {
     if (!selectedFile) return;
 
     const deletePromise = async () => {
+      invalidateCache(); // invalidate current drive folder
+      // Also bust the Trash cache so opening Trash immediately shows the
+      // newly deleted file without requiring a manual refresh.
+      const trashKey = `trash:null:${selectedOrgId ?? "none"}`;
+      folderCache.current.delete(trashKey);
       const token = await getToken();
       if (!token) throw new Error("Authentication error");
       await StorageApi.trashItem(token, selectedFile.id, orgIds);
@@ -300,18 +588,27 @@ export default function Home() {
 
   const handleRestore = async () => {
     if (!selectedFile) return;
-    const token = await getToken();
-    if (!token) return;
-    await StorageApi.restoreItem(token, selectedFile.id, orgIds);
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === selectedFile.id ? { ...item, isTrashed: false } : item,
-      ),
-    );
-    setSelectedFile(null);
+    // Invalidate the Trash cache (current view) so the restored file
+    // disappears immediately without a manual refresh.
+    invalidateCache();
+    // Also invalidate the drive folder the file is being restored TO so
+    // navigating there shows the file straight away.
+    const driveKey = `drive:${selectedFile.parentId ?? "root"}:${selectedOrgId ?? "none"}`;
+    folderCache.current.delete(driveKey);
+    try {
+      const token = await getToken();
+      if (!token) return;
+      await StorageApi.restoreItem(token, selectedFile.id, orgIds);
+      setSelectedFile(null);
+      setModals((prev) => ({ ...prev, delete: false }));
+      await loadFiles(); // refresh Trash — restored file will be gone
+    } catch (err) {
+      console.error("Failed to restore", err);
+    }
   };
 
   const handleEmptyTrash = async () => {
+    invalidateCache();
     try {
       const token = await getToken();
       if (!token) return;
@@ -327,6 +624,7 @@ export default function Home() {
     if (!selectedFile) return;
 
     const deletePromise = async () => {
+      invalidateCache();
       const token = await getToken();
       if (!token) throw new Error("Authentication error");
       await StorageApi.deleteItem(token, selectedFile.id, orgIds);
@@ -343,6 +641,7 @@ export default function Home() {
   };
 
   const handleRestoreAll = async () => {
+    invalidateCache();
     try {
       const token = await getToken();
       if (!token) return;
@@ -406,6 +705,7 @@ export default function Home() {
 
   const doUpload = (file: File, mode: "replace" | "keep" | undefined) => {
     const uploadPromise = async () => {
+      invalidateCache();
       const token = await getToken();
       if (!token) throw new Error("Authentication error");
       await StorageApi.uploadFile(token, file, currentFolderId, mode);
@@ -509,17 +809,26 @@ export default function Home() {
         handleCut(item);
         break;
       case "paste":
-        handlePaste();
+        // If the user right-clicked a FOLDER, paste INTO that folder.
+        // If they right-clicked a file or the background (item is null/undefined),
+        // paste into the currently open folder (default behaviour).
+        if (item && item.type === "folder") {
+          handlePaste(item.id);
+        } else {
+          handlePaste();
+        }
         break;
     }
     setContextMenu(null);
   };
 
   const handleTrashClick = () => {
+    const trashHistory = [{ id: "trash", name: "Trash" }];
     setCurrentView("trash");
-    setFolderHistory([{ id: "trash", name: "Trash" }]);
+    setFolderHistory(trashHistory);
     setSelectedFile(null);
     setSearchQuery(""); // Clear search when switching to trash
+    pushNavToUrl("trash", trashHistory);
   };
 
   const handleCopy = (item?: FileItem) => {
@@ -534,31 +843,56 @@ export default function Home() {
     setClipboard({ item: target, operation: "cut" });
   };
 
-  const handlePaste = async () => {
+  // targetFolderId: pass a folder's id when pasting into a specific folder
+  // (e.g. right-click on a folder card). Omit to paste into the currently
+  // open folder (Toolbar paste button or background right-click).
+  const handlePaste = async (targetFolderId?: string | null) => {
     if (!clipboard) return;
-    try {
-      const token = await getToken();
-      if (!token) return;
 
-      if (clipboard.operation === "cut") {
-        // Move: update parentId to current folder
-        // await StorageApi.renameItem(
-        //   token,
-        //   clipboard.item.id,
-        //   clipboard.item.name,
-        // );
-        // Actually we need moveItem — see storageApi section below
-        await StorageApi.moveItem(token, clipboard.item.id, currentFolderId);
-        setClipboard(null); // Clear clipboard after cut-paste
+    const op = clipboard.operation;
+    const pastedItem = clipboard.item;
+    // Resolve destination: explicit target, or the currently open folder
+    const destinationId =
+      targetFolderId !== undefined ? targetFolderId : currentFolderId;
+
+    const pastePromise = async () => {
+      // Invalidate the DESTINATION folder cache so it shows the new item
+      invalidateCache(destinationId);
+
+      // For a cut (move), also invalidate the SOURCE folder so that folder
+      // no longer shows the moved file when the user navigates back to it.
+      if (op === "cut") {
+        const sourceParentId = pastedItem.parentId ?? null;
+        if (sourceParentId !== destinationId) {
+          invalidateCache(sourceParentId);
+        }
+      }
+
+      const token = await getToken();
+      if (!token) throw new Error("Authentication error");
+
+      if (op === "cut") {
+        await StorageApi.moveItem(token, pastedItem.id, destinationId);
+        setClipboard(null); // Clear clipboard after cut-paste (one-time move)
       } else {
-        // Copy: call copyItem API — see storageApi section below
-        await StorageApi.copyItem(token, clipboard.item.id, currentFolderId);
-        // Clipboard stays for multiple pastes
+        await StorageApi.copyItem(token, pastedItem.id, destinationId);
+        setClipboard(null); // Clear clipboard after copy-paste (one-time use)
       }
       await loadFiles();
-    } catch (err) {
-      console.error("Paste failed", err);
-    }
+    };
+
+    toast.promise(pastePromise(), {
+      loading:
+        op === "cut"
+          ? `Moving "${pastedItem.name}"...`
+          : `Copying "${pastedItem.name}"...`,
+      success:
+        op === "cut"
+          ? `"${pastedItem.name}" moved successfully`
+          : `"${pastedItem.name}" copied successfully`,
+      error: (err) =>
+        `Paste failed: ${err instanceof Error ? err.message : "Unknown error"}`,
+    });
   };
 
   if (orgs.length === 0 || !selectedOrgId) {
@@ -600,50 +934,6 @@ export default function Home() {
               {currentItems.length} items
             </span>
           </div>
-          <br />
-          <nav className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-            <button
-              onClick={handleBack}
-              disabled={
-                folderHistory.length <= 1 &&
-                currentView !== "trash" &&
-                !searchQuery
-              }
-              className={cn(
-                "p-1 rounded-full transition-colors",
-                // Background colors fixed for light/dark
-                "hover:bg-gray-200 dark:hover:bg-white/5",
-                folderHistory.length <= 1 &&
-                  currentView !== "trash" &&
-                  !searchQuery
-                  ? "opacity-30 cursor-not-allowed"
-                  : // Text colors fixed for light/dark
-                    "text-gray-600 dark:text-gray-200",
-              )}
-              title="Go Back"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <div className="w-px h-4 bg-gray-300 dark:bg-sidebar-border" />
-
-            {folderHistory.map((item, index) => (
-              <button
-                key={index}
-                onClick={() => navigateToBreadcrumb(index)}
-                className={cn(
-                  "transition-colors px-1",
-                  // Hover text color fixed
-                  "hover:text-gray-900 dark:hover:text-white",
-                  index === folderHistory.length - 1
-                    ? // Active text color fixed
-                      "text-gray-900 dark:text-white font-medium"
-                    : "",
-                )}
-              >
-                {item.name} {index < folderHistory.length - 1 && " / "}
-              </button>
-            ))}
-          </nav>
         </div>
 
         <Toolbar
@@ -676,14 +966,30 @@ export default function Home() {
           usagePercent={usagePercent}
           usedBytes={usedBytes}
           clipboardItemName={clipboard?.item.name ?? null}
-          onPaste={handlePaste}
+          onPaste={() => handlePaste()}
         />
 
-        {viewMode === "grid" ? (
+        {loading ? (
+          <StorageSkeleton viewMode={viewMode} />
+        ) : viewMode === "grid" ? (
           <div
             className="flex-1 overflow-y-auto min-h-0 space-y-8 pb-10"
             onContextMenu={(e) => {
-              e.preventDefault();
+              // If the click landed directly on this background container
+              // (not on a card inside it) and we have something on the
+              // clipboard, open a paste-only context menu.
+              if (e.target === e.currentTarget && clipboard) {
+                e.preventDefault();
+                // Use a synthetic FileItem shell — handleContextMenuAction
+                // "paste" only reads clipboard, not contextMenu.item.
+                setContextMenu({
+                  x: e.clientX,
+                  y: e.clientY,
+                  item: null as unknown as FileItem,
+                });
+              } else {
+                e.preventDefault();
+              }
             }}
           >
             {currentFolders.length > 0 && (
@@ -740,13 +1046,13 @@ export default function Home() {
               <div className="flex-1 flex items-center justify-center text-gray-500 flex-col gap-2 mt-20">
                 <div className="text-lg font-medium">This folder is empty</div>
                 <div className="text-sm">
-                  Use the "New Folder" button to create one
+                  Use the &quot;New Folder&quot; button to create one
                 </div>
               </div>
             )}
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto min-h-0 pb-10 bg-card rounded-xl border border-border">
+          <div className="flex-1 overflow-y-auto min-h-0 pb-10 bg-card rounded-xl border border-border mt-4">
             <FileList
               items={currentItems}
               selectedId={selectedFile?.id}
@@ -859,4 +1165,8 @@ export default function Home() {
       </div>
     </div>
   );
+}
+
+export default function Home() {
+  return <StoragePageContent />;
 }
